@@ -2,8 +2,10 @@ package mnkgame;
 
 import java.util.Random;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.PriorityQueue;
 
 /**
  *
@@ -52,8 +54,8 @@ public class MyPlayerMTD implements MNKPlayer {
         tTable = new HashMap<>();
     }
 
-    private int evaluation(MNKBoard board) {
-        int eval = 0;
+    private double evaluation(MNKBoard board) {
+        double eval = 0;
         if (board.gameState == myWin) {
             eval = 1;
         } else if (board.gameState == yourWin) {
@@ -61,12 +63,16 @@ public class MyPlayerMTD implements MNKPlayer {
         } else if (board.gameState == MNKGameState.DRAW) {
             eval = 0;
         } else {
-            int libere_x = 0; // Giocatore 1
-            int libere_o = 0; // Giocatore 2
+            PriorityQueue righe_marcate_x = new PriorityQueue<>(board.M, Collections.reverseOrder());
+            PriorityQueue colonne_marcate_x = new PriorityQueue<>(board.N, Collections.reverseOrder());
+            PriorityQueue righe_marcate_o = new PriorityQueue<>(board.M, Collections.reverseOrder());
+            PriorityQueue colonne_marcate_o = new PriorityQueue<>(board.N, Collections.reverseOrder());
+            double libere_x = 0; // Giocatore 1
+            double libere_o = 0; // Giocatore 2
             int giocatore_analizzato = 0;
             for (MNKCell marked : board.MC) {
-                // System.out.println("Casella giocata: " + String.valueOf(marked.i) +
-                // String.valueOf(marked.j));
+                System.out.println(
+                        "Casella giocata: " + "[" + String.valueOf(marked.i) + "," + String.valueOf(marked.j) + "]");
                 // System.out.print("sonoqui");
                 if (giocatore_analizzato % 2 == 0) {
                     // nelle posizioni pari dell'array MC ci sono le mosse di X
@@ -78,9 +84,34 @@ public class MyPlayerMTD implements MNKPlayer {
                             riga_libera = 0;
                             break;
                         }
+
                     }
                     if (riga_libera == 1) {
-                        libere_x++;
+                        if (!righe_marcate_x.contains(marked.i)) {
+                            righe_marcate_x.add(marked.i);
+                            libere_x++;
+                            System.out.println("libere_x orizzonatale:" + libere_x);
+                            double punti_extra = 0;
+                            for (int k = marked.j + 1; k < board.N; k++) {
+                                if (board.B[marked.i][k] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            for (int k = marked.j - 1; k >= 0; k--) {
+                                if (board.B[marked.i][k] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            // libere_x = libere_x + punti_extra / 10;
+                            libere_x = libere_x + punti_extra;
+                            System.out.println("puntiextra orizzontali: " + punti_extra);
+                        } else {
+                            System.out.println("La riga ORIZZONTALE è già stata calcolata");
+                        }
                     }
                     riga_libera = 1;
 
@@ -93,7 +124,31 @@ public class MyPlayerMTD implements MNKPlayer {
                         }
                     }
                     if (riga_libera == 1) {
-                        libere_x++;
+                        if (!colonne_marcate_x.contains(marked.j)) {
+                            righe_marcate_x.add(marked.j);
+                            libere_x++;
+                            System.out.println("libere_x verticali:" + libere_x);
+                            double punti_extra = 0;
+                            for (int k = marked.i + 1; k < board.N; k++) {
+                                if (board.B[k][marked.j] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            for (int k = marked.i - 1; k >= 0; k--) {
+                                if (board.B[k][marked.j] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            // libere_x = libere_x + punti_extra / 10;
+                            libere_x = libere_x + punti_extra;
+                            System.out.println("puntiextra verticali: " + punti_extra);
+                        } else {
+                            System.out.println("La riga VERTICALE è già stata calcolata");
+                        }
                     }
 
                 } else {
@@ -109,7 +164,27 @@ public class MyPlayerMTD implements MNKPlayer {
                         }
                     }
                     if (riga_libera == 1) {
-                        libere_o++;
+                        if (!righe_marcate_o.contains(marked.i)) {
+                            righe_marcate_o.add(marked.i);
+                            libere_o++;
+                            double punti_extra = 0;
+                            for (int k = marked.j + 1; k < board.N; k++) {
+                                if (board.B[marked.i][k] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            for (int k = marked.j - 1; k >= 0; k--) {
+                                if (board.B[marked.i][k] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            // libere_o = libere_o + punti_extra / 10;
+                            libere_o = libere_o + punti_extra;
+                        }
                     }
                     riga_libera = 1;
 
@@ -122,7 +197,27 @@ public class MyPlayerMTD implements MNKPlayer {
                         }
                     }
                     if (riga_libera == 1) {
-                        libere_o++;
+                        if (!colonne_marcate_o.contains(marked.j)) {
+                            colonne_marcate_o.add(marked.j);
+                            libere_o++;
+                            double punti_extra = 0;
+                            for (int k = marked.i + 1; k < board.N; k++) {
+                                if (board.B[k][marked.j] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            for (int k = marked.i - 1; k >= 0; k--) {
+                                if (board.B[k][marked.j] == marked.state) {
+                                    punti_extra = punti_extra + 2;
+                                } else {
+                                    break;
+                                }
+                            }
+                            // libere_o = libere_o + punti_extra / 10;
+                            libere_o = libere_o + punti_extra;
+                        }
                     }
 
                 }
@@ -205,9 +300,34 @@ public class MyPlayerMTD implements MNKPlayer {
             }
             if (riga_libera_x == 1) {
                 libere_x++;
+                System.out.println("libere_x diagonale da (0,0) a (2,2):" + libere_x);
+                double punti_extra = 0;
+                if (board.B[1][1] == MNKCellState.P1) {
+                    // controllo su entrambe le diagonali per vedere se avere punti_extra
+                    if (board.B[2][2] == MNKCellState.P1 || board.B[0][0] == MNKCellState.P1) {
+                        punti_extra = punti_extra + 2;
+                    }
+
+                }
+
+                // libere_x = libere_x + punti_extra / 10;
+                libere_x = libere_x + punti_extra;
+                System.out.println("puntiextra diagonale da (0,0) a (2,2): " + punti_extra);
+
             }
             if (riga_libera_o == 1) {
                 libere_o++;
+                double punti_extra = 0;
+                if (board.B[1][1] == MNKCellState.P2) {
+                    // controllo su entrambe le diagonali per vedere se avere punti_extra
+                    if (board.B[2][2] == MNKCellState.P2 || board.B[0][0] == MNKCellState.P2) {
+                        punti_extra = punti_extra + 2;
+                    }
+
+                }
+
+                // libere_o = libere_o + punti_extra / 10;
+                libere_o = libere_o + punti_extra;
             }
             riga_libera_x = 1;
             riga_libera_o = 1;
@@ -241,9 +361,27 @@ public class MyPlayerMTD implements MNKPlayer {
             }
             if (riga_libera_x == 1) {
                 libere_x++;
+                System.out.println("libere_x diagonale da (2,0) a (0,2):" + libere_x);
+                double punti_extra = 0;
+                if (board.B[1][1] == MNKCellState.P1) {
+                    if (board.B[2][0] == MNKCellState.P1 || board.B[0][2] == MNKCellState.P1) {
+                        punti_extra = punti_extra + 2;
+                    }
+                }
+                // libere_x = libere_x + punti_extra / 10;
+                libere_x = libere_x + punti_extra;
+                System.out.println("puntiextra diagonale da (2,0) a (0,2): " + punti_extra);
             }
             if (riga_libera_o == 1) {
                 libere_o++;
+                double punti_extra = 0;
+                if (board.B[1][1] == MNKCellState.P2) {
+                    if (board.B[2][0] == MNKCellState.P2 || board.B[0][2] == MNKCellState.P2) {
+                        punti_extra = punti_extra + 2;
+                    }
+                }
+                // libere_o = libere_o + punti_extra / 10;
+                libere_o = libere_o + punti_extra;
             }
             if (myWin == MNKGameState.WINP1) {
                 System.out.println("WINP1: " + board.MC.toString());
@@ -303,20 +441,18 @@ public class MyPlayerMTD implements MNKPlayer {
             }
         }
 
-        if (depth == 0 || board.gameState != MNKGameState.OPEN
-                || ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (99.0 / 100.0))) {
+        if (depth == 0 || board.gameState != MNKGameState.OPEN) {
             if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (99.0 / 100.0)) {
                 System.out.println("temposcaduto");
             }
 
             eval = evaluation(board);
-        } else if (!playerA) { // mi calcolo il valore del ramo
+        } else if (playerA == true) { // mi calcolo il valore del ramo
             eval = -9;
             for (MNKCell d : fc) {
                 board.markCell(d.i, d.j);
-                eval = Math.max(eval, alphaBeta(board, true, alpha, beta, depth - 1));
+                eval = Math.max(eval, alphaBeta(board, false, alpha, beta, depth - 1));
                 alpha = Math.max(eval, alpha);
-
                 board.unmarkCell();
                 if (beta <= alpha) {
                     break;
@@ -326,9 +462,8 @@ public class MyPlayerMTD implements MNKPlayer {
             eval = 9;
             for (MNKCell d : fc) {
                 board.markCell(d.i, d.j);
-                eval = Math.min(eval, alphaBeta(board, false, alpha, beta, depth - 1));
+                eval = Math.min(eval, alphaBeta(board, true, alpha, beta, depth - 1));
                 beta = Math.min(eval, beta);
-
                 board.unmarkCell();
                 if (beta <= alpha) {
                     break;
@@ -421,39 +556,28 @@ public class MyPlayerMTD implements MNKPlayer {
             }
         }
 
-        /*
-         * System.out.println("La mossa non fa vincere l'avversario: " + "[" + d.i + ","
-         * + d.j + "]");
-         * for (MNKCell f_c : FC) {
-         * 
-         * if (B.markCell(f_c.i, f_c.j) == yourWin) {
-         * System.out.println("l'avversario può vincere e quindi gli blocco la mossa");
-         * return f_c;
-         * } else {
-         * B.unmarkCell();
-         * }
-         * }
-         */
-
         /*------------------------------------------------------------- */
         /*-------------------APPLICAZIONE ALGORITMO-------------------- */
         /*------------------------------------------------------------- */
 
-        double score, maxEval = -9;
+        double score = 0, maxEval = -9;
         MNKCell result = FC[pos]; // random move
         for (MNKCell currentCell : FC) {
 
             // If time is running out, return the randomly selected cell
             if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (99.0 / 100.0)) {
-                System.out.println("temposcaduto!!!!!!!");
+                System.out
+                        .println("temposcaduto!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                 break;
 
             } else {
+                B.markCell(currentCell.i, currentCell.j);
                 score = MTDF(B, FC);
                 if (score > maxEval) {
                     maxEval = score;
                     result = currentCell;
                 }
+                B.unmarkCell();
             }
         }
 
@@ -473,6 +597,7 @@ public class MyPlayerMTD implements MNKPlayer {
                 }
             }
         }
+        System.out.println("Score è: " + score);
         System.out.println("---------------------------------------------------------------------------------------");
         return result;
     }
