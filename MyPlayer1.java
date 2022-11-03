@@ -150,6 +150,9 @@ public class MyPlayer1 implements MNKPlayer {
         double beta = 2;
         double eval = -2;
         for(int k=0; k<depth; k++) {
+            if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (90.0 / 100.0)) {
+                break;
+            }
             eval = alphaBeta(board, playerA, alpha, beta, depth);
         }
         return eval;
@@ -159,7 +162,7 @@ public class MyPlayer1 implements MNKPlayer {
         double g = f;
         double upperbound = 2;
         double lowerbound = -2;
-        double beta=0;
+        double beta;
         do {
             if(g == lowerbound) {
                 beta = g+1;
@@ -183,7 +186,7 @@ public class MyPlayer1 implements MNKPlayer {
         for(int d=1; d<FC.length; d++) {
             firstguess = MTD(board, firstguess, d);
             // If time is running out, return the randomly selected  cell
-            if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (99.0 / 100.0)) {
+            if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (90.0 / 100.0)) {
                 break;
             }
         }
@@ -245,7 +248,29 @@ public class MyPlayer1 implements MNKPlayer {
 
         double score, maxEval = -2;
         MNKCell result = FC[pos]; // random move
-
+        
+        // Check whether there is a single move loss:
+        // 1. mark a random position
+        // 2. check whether the adversary can win
+        // 3. if he can win, select his winning position 
+        //B.markCell(result.i, result.j);
+        for (MNKCell libera : FC) {
+            // If time is running out, return the randomly selected cell
+            if ((System.currentTimeMillis() - start) / 1000.0 > TIMEOUT * (99.0 / 100.0)) {
+                return result;
+            } else if (libera != result) {
+                if (B.markCell(libera.i, libera.j) == yourWin) {
+                    B.unmarkCell(); // undo adversary move e cioè rimuove la mossa "d"
+                    B.unmarkCell(); // undo my move e cioè rimuove la mossa "c"
+                    B.markCell(libera.i, libera.j); // select his winning position
+                    return libera; // return his winning position
+                } else {
+                    B.unmarkCell(); // undo adversary move to try a new one
+                }
+            }
+        }
+        
+        //System.out.println("celle libere: " + FC.length);
         for (MNKCell currentCell : FC) {
 
             // If time is running out, return the randomly selected  cell
@@ -254,10 +279,17 @@ public class MyPlayer1 implements MNKPlayer {
 
             } else {
                 B.markCell(currentCell.i, currentCell.j);
-
+                
                 //score = alphaBeta(B, true, -2, 2, FC.length);
-                //score = iterativeDeepeing(B, true, FC.length);
-                score = MTDF(B, FC);
+                score = iterativeDeepeing(B, true, FC.length);
+                //score = MTDF(B, FC);
+                
+                /*
+                if(FC.length <= 16) {
+                    score = iterativeDeepeing(B, true, FC.length);
+                } else {
+                    score = MTDF(B, FC);
+                }*/
                 
                 if (score > maxEval) {
                     maxEval = score;
@@ -273,6 +305,6 @@ public class MyPlayer1 implements MNKPlayer {
     }
 
     public String playerName() {
-        return "MyPlayer";
+        return "MyPlayer1";
     }
 }
