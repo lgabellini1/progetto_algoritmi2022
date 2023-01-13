@@ -63,4 +63,9 @@ public class MNKIntersection {
     public int hashCode() {
         return c.hashCode();
     }
+
+    @Override
+    public String toString() {
+        return "Intersection at " + c.toString();
+    }
 }

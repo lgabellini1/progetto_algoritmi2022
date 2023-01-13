@@ -28,21 +28,14 @@ public class MNKStrategy {
         return c.i * N + c.j;
     }
 
-    private boolean rec_contains(MNKCell c, int s, int e) {
-        if (s > e) return false;
-
-        int m = Math.floorDiv(s + e, 2);
-        if (cellIndex(c) == cellIndex(range.get(m)))
-            return true;
-        else if (cellIndex(c) > cellIndex(range.get(m)))
-            return rec_contains(c, m + 1, e);
-        else 
-            return rec_contains(c, s, m - 1);
-    }
-
-    // O(log K)
+    // O(1)
     public boolean contains(MNKCell c) {
-        return rec_contains(c, 0, K - 1);
+        int x = cellIndex(range.get(1)) - cellIndex(range.get(0));
+        if ((cellIndex(c)-cellIndex(range.get(0))) % x != 0) return false;
+        else {
+            int q = (cellIndex(c) - cellIndex(range.get(0))) / x;
+            return q > 0 && q < K;
+        }
     }
 
     // O(1)
@@ -65,7 +58,8 @@ public class MNKStrategy {
         }
 
         if (my_cells > K || adv_cells > K) 
-            throw new IllegalStateException("More than K cells in a single strategy!");
+            throw new IllegalStateException("More than K cells in a single strategy!\n" +
+                    "Trying to add cell [" + c.i + "," + c.j + "] in range " + range);
     }
 
     // O(1)
@@ -100,7 +94,7 @@ public class MNKStrategy {
         return valid;
     }
 
-    // O(K log K)
+    // O(K)
     public ArrayList<MNKIntersection> intersects(MNKStrategy S, MNKBoard B) {
         if (S.equals(this)) return null;
 

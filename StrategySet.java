@@ -36,7 +36,7 @@ public class StrategySet {
         win_count       = 0;
     }
 
-    // O(n log K), where n is the size of the set
+    // O(n), where n is the size of the set
     public void update(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i,c.j)==MNKCellState.FREE)
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
@@ -219,7 +219,7 @@ public class StrategySet {
                     invalids + "\nGenerated number is: " + gen_size());*/
     }
 
-    // O(n log K), where n the size of the set
+    // O(n), where n the size of the set
     public void undo(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE)
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
@@ -267,7 +267,7 @@ public class StrategySet {
                     invalids + "\nGenerated number is: " + gen_size()); */
     }
 
-    // O(n^2 x K log K), where n is the size of the set
+    // O(n^2 x K), where n is the size of the set
     public IntersectionSet generateFrom(MNKBoard B) {
         IntersectionSet iSet = new IntersectionSet(B);
         for (MNKStrategy S : set) {
