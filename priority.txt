@@ -1,0 +1,3 @@
+3 - intersezione
+2 - cella che genera intersezioni
+1 - cella in MNKStrategy
