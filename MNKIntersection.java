@@ -2,13 +2,37 @@ package mnkgame;
 
 import java.util.LinkedList;
 
+/**
+ *  Rappresenta la cella in cui due o più
+ *  MNKStrategy si intersecano.
+ */
 public class MNKIntersection {
-    public final MNKCell c;
-    private final LinkedList<MNKStrategy> strategies;
-    private final int K;
-    private int K_minus2; // Number of strategies at K-2 symbols.
 
-    // O(1)
+    /**
+     *  Cella d'intersezione.
+     */
+    public final MNKCell c;
+
+    /**
+     *  Elenco delle MNKStrategy che si intersecano in c.
+     */
+    private final LinkedList<MNKStrategy> strategies;
+
+    private final int K;
+
+    /**
+     *  Numero di strategie a K-2 simboli. Se questo valore è
+     *  maggiore o uguale di 2, allora la configurazione equivale
+     *  a una vittoria.
+     */
+    private int K_minus2;
+
+    /**
+     *  Complessità: O(1)
+     *  @param c cella d'intersezione
+     *  @param B MNKBoard di gioco
+     *  @param strats strategie intersecanti in c
+     */
     public MNKIntersection(MNKCell c, MNKBoard B, MNKStrategy[] strats) {
         this.c     = c;
         strategies = new LinkedList<>();
@@ -19,7 +43,11 @@ public class MNKIntersection {
             add(S);
     }
 
-    // O(1)
+    /**
+     *  Aggiunge un'ulteriore MNKStrategy S che passa per c.
+     *  Complessità: O(1)
+     *  @param S MNKStrategy aggiunta
+     */
     public void add(MNKStrategy S) {
         if (S.valid()) {
             strategies.add(S);
@@ -28,7 +56,12 @@ public class MNKIntersection {
         }
     }
 
-    // O(n), where n is the number of strategies intersecting in I
+    /**
+     *  Data una MNKIntersection I equivalente (ovvero, con la stessa cella c di intersezione),
+     *  fondi in uno solo i due insiemi di MNKStrategy.
+     *  Complessità: O(n), dove n è il numero di MNKStrategy intersecanti in I
+     *  @param I intersezione equivalente
+     */
     public void merge(MNKIntersection I) {
         if (I.equals(this)) {
             for (MNKStrategy S : I.strategies)
@@ -37,12 +70,18 @@ public class MNKIntersection {
         } 
     }
 
-    // O(1)
+    /**
+     *  Complessità: O(1)
+     *  @return True se sono presenti almeno due MNKStrategy a k-2 simboli
+     */
     public boolean winning() {
         return K_minus2>=2;
     }
 
-    // O(1)
+    /**
+     *  Complessità: O(1)
+     *  @return numero di MKNStrategy intersecanti in c
+     */
     public int cardinality() {
         return strategies.size();
     }

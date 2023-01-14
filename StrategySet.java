@@ -2,14 +2,43 @@ package mnkgame;
 
 import java.util.*;
 
+/**
+ *  Rappresenta l'insieme di MNKStrategy possibili associate a uno specifico giocatore.
+ *  L'algoritmo mantiene quindi due StrategySet distinti: uno per il giocatore che massimizza
+ *  e l'altro per il giocatore che minimizza.
+ */
 public class StrategySet {
+
+    /**
+     *  Set delle MNKStrategy
+     */
     private final ArrayList<MNKStrategy> set;
+
     public  final MNKCellState player, adv;
+
+    /**
+     *  Stack delle MNKStrategy generate. Per ogni turno, mantiene il numero
+     *  di MNKStrategy che il player genera con una data mossa.
+     */
     private final ArrayDeque<Integer> generated_stack;
+
+    /**
+     *  Stack delle MNKStrategy invalide. Mantiene, per ogni turno, la lista
+     *  di MNKStrategy ha reso invalide con la sua mossa.
+     */
     private final ArrayDeque<ArrayList<InvMNKStrategy>> invalid_stack;
+
     private final int K;
+
+    /**
+     *  Numero di MNKStrategy vincenti (a K-1 simboli) nel set.
+     */
     private int win_count;
 
+    /**
+     *  Classe ausiliaria per invalid_stack. Memorizza una MNKStrategy con
+     *  il suo indice nel set nel momento in cui è stata resa invalida.
+     */
     private static class InvMNKStrategy {
         private final MNKStrategy S;
         private final int index;
@@ -25,7 +54,11 @@ public class StrategySet {
         }
     }
 
-    // O(1)
+    /**
+     * Complessità: O(1)
+     * @param B MNKBoard di gioco
+     * @param player giocatore a cui è associato il set
+     */
     public StrategySet(MNKBoard B, MNKCellState player) {
         set             = new ArrayList<>(4*B.M*B.N);
         this.player     = player;
@@ -36,12 +69,31 @@ public class StrategySet {
         win_count       = 0;
     }
 
-    // O(n), where n is the size of the set
+    /**
+     *  Funzione "compagno" di markCell(c). E' così strutturata:
+     *
+     *  1) per ogni MNKStrategy S tale che S contiene c, aggiunge
+     *     c ad S;
+     *
+     *  2) genera a partire da c al più 8 nuove MKNStrategy (una per
+     *     direzione) e aggiungi quelle valide al set.
+     *
+     *  Complessità: O(n), dove n è la dimensione del set
+     *  @param c cella marcata nell'algoritmo
+     *  @param B MNKBoard di gioco
+     */
     public void update(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i,c.j)==MNKCellState.FREE)
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
 
+        // 1)
+        /* -------------------------------------------------- */
         Iterator<MNKStrategy> iter = set.iterator(); int t = 0;
+
+        /* Si costruisce l'insieme di MNKStrategy rese invalide in questo turno e
+           lo si spinge sullo stack. Notare che questo insieme sarà vuoto se la cella c marcata
+           è una mossa del giocatore a cui appartiene il set, poiché un giocatore non può invalidare
+           le sue stesse MNKStrategy. */
         ArrayList<InvMNKStrategy> invalids = new ArrayList<>();
         invalid_stack.push(invalids);
 
@@ -63,10 +115,18 @@ public class StrategySet {
 
             t++;
         }
+        /* -------------------------------------------------- */
 
+
+        // 2)
+        /* -------------------------------------------------- */
         if (B.cellState(c.i, c.j) == adv)
+            /* Se c appartiene all'avversario, allora sicuramente le generate saranno 0.
+               Infatti l'avversario potrebbe generare delle MNKStrategy, ma solo nel set
+               a lui corrispondente. */
             generated_stack.push(0);
         else {
+            // Numero di MNKStrategy generate nel dato turno.
             int generated = 0;
 
             // Up
@@ -206,6 +266,7 @@ public class StrategySet {
 
             generated_stack.push(generated);
         }
+        /* -------------------------------------------------- */
 
         // Test
         /*if (win_count < 0)
@@ -219,11 +280,31 @@ public class StrategySet {
                     invalids + "\nGenerated number is: " + gen_size());*/
     }
 
-    // O(n), where n the size of the set
+    /**
+     *  Funzione "compagno" di unmarkCell() e speculare ad update().
+     *  E' strutturata nel modo seguente:
+     *
+     *  1) rimuovi dal set un numero di MNKStrategy pari a quello restituito
+     *     da generated_stack.pop(). Infatti, queste coincideranno esattamente
+     *     con le MNKStrategy generate dalla mossa che stiamo annullando;
+     *
+     *  2) aggiungi nel set le MNKStrategy restituite da invalid_stack.pop().
+     *     Questo equivale al ripristinare tutte le MNKStrategy invalidate
+     *     dalla mossa che stiamo annullando;
+     *
+     *  3) per ogni MNKStrategy S (preesistente a c) tale che S contiene c, rimuove
+     *     c da S;
+     *
+     *  Complessità: O(n), dove n è la dimensione del set
+     *  @param c cella smarcata nell'algoritmo
+     *  @param B MNKBoard di gioco
+     */
     public void undo(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE)
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
 
+        // 1)
+        /* -------------------------------------------------- */
         int MAX = generated_stack.pop();
         int n = set.size() - 1;
         for (int i = n; i > n - MAX; i--) {
@@ -231,14 +312,22 @@ public class StrategySet {
                 win_count--;
             set.remove(i);
         }
+        /* -------------------------------------------------- */
 
+
+        // 2)
+        /* -------------------------------------------------- */
         ArrayList<InvMNKStrategy> invalids = invalid_stack.pop();
         for (InvMNKStrategy S : invalids) {
             set.add(S.index, S.S);
             if (S.S.winning())
                 win_count++;
         }
+        /* -------------------------------------------------- */
 
+
+        // 3)
+        /* -------------------------------------------------- */
         for (MNKStrategy S : set) {
             if (S.contains(c)) {
                 boolean winning = S.winning();
@@ -254,6 +343,7 @@ public class StrategySet {
                 }
             }
         }
+        /* -------------------------------------------------- */
 
         // Test
         /* if (win_count < 0)
@@ -267,7 +357,13 @@ public class StrategySet {
                     invalids + "\nGenerated number is: " + gen_size()); */
     }
 
-    // O(n^2 x K), where n is the size of the set
+    /**
+     *  Genera tutte le MNKIntersection possibili dal set. Confronta cioè ogni coppia
+     *  di MNKStrategy nel set e calcolane le intersezioni.
+     *  Complessità: O(n^2 x K), dove n è la dimensione del set
+     *  @param B MNKBoard di gioco
+     *  @return set delle intersezioni generato
+     */
     public IntersectionSet generateFrom(MNKBoard B) {
         IntersectionSet iSet = new IntersectionSet(B);
         for (MNKStrategy S : set) {
@@ -284,15 +380,23 @@ public class StrategySet {
         } return iSet.size() > 0 ? iSet : null;
     }
 
-    // O(1)
+    /**
+     * Complessità: O(1)
+     * @return dimensione n del set
+     */
     public int size() {
         return set.size();
     }
 
-    // O(1)
+    /**
+     * Complessità: O(1)
+     * @return MNKStrategy vincenti
+     */
     public int winning() {
         return win_count;
     }
+
+
 
     // Test functions
     public MNKStrategy[] set() { return set.toArray(new MNKStrategy[0]); }

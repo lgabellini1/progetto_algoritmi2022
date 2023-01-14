@@ -2,14 +2,45 @@ package mnkgame;
 
 import java.util.ArrayList;
 
+/**
+ *  Fila di K celle consecutive nella MNKBoard. Rappresenta una potenziale
+ *  strategia di gioco da seguire, ovvero una serie di K celle da marcare
+ *  per vincere.
+ */
 public class MNKStrategy {
-    private int my_cells, adv_cells;
-    private final ArrayList<MNKCell> range;
-    private final int M,N,K;
-    public  final MNKCellState player;
-    private boolean valid, prev_gen;
 
-    // O(1)
+    /**
+     *  Numero di celle del giocatore corrispondente (my_cells)
+     *  e dell'avversario (adv_cells) nella MNKStrategy.
+     */
+    private int my_cells, adv_cells;
+
+    /**
+     *  Array contenente la lista di K celle che rappresentano
+     *  la MNKStrategy. Ad esempio la strategia orizzontale
+     *  nella prima riga nel Tris sarebbe:
+     *  [0,0]->[0,1]->[0,2]
+     */
+    private final ArrayList<MNKCell> range;
+
+    private final int M,N,K;
+
+    /**
+     *  Giocatore a cui appartiene la MNKStrategy.
+     */
+    public  final MNKCellState player;
+
+    /**
+     *  Condizione di validità; vera se non sono
+     *  presenti celle dell'avversario.
+     */
+    private boolean valid;
+
+    /**
+     *  Complessità: O(1)
+     *  @param B MNKBoard della partita
+     *  @param c cella di partenza per la MNKStrategy
+     */
     public MNKStrategy(MNKBoard B, MNKCell c) {
         my_cells = adv_cells = 0;
         range    = new ArrayList<>(B.K);
@@ -23,12 +54,25 @@ public class MNKStrategy {
             throw new IllegalArgumentException("Cell in input is unmarked: player is FREE.");
     }
 
-    // O(1)
+    /**
+     *  Funzione ausiliaria. Restituisce un intero identificativo
+     *  univoco per ogni cella (intuitivamente, le celle vengono contate
+     *  da 0 a partire dall'angolo in alto a sinistra fino ad arrivare ad
+     *  M*N - 1 nell'angolo in basso a destra).
+     *  Complessità: O(1)
+     *  @param c cella di cui restituire l'indice
+     *  @return indice di c
+     */
     private int cellIndex(MNKCell c) {
         return c.i * N + c.j;
     }
 
-    // O(1)
+    /**
+     *  Valuta se la cella c in input è contenuta nella MNKStrategy.
+     *  Complessità: O(1)
+     *  @param c cella in input
+     *  @return true se c appartiene a range; false altrimenti
+     */
     public boolean contains(MNKCell c) {
         int x = cellIndex(range.get(1)) - cellIndex(range.get(0));
         if ((cellIndex(c)-cellIndex(range.get(0))) % x != 0) return false;
@@ -38,14 +82,25 @@ public class MNKStrategy {
         }
     }
 
-    // O(1)
+    /**
+     *  Funzione utile all'inizializzazione della MNKStrategy.
+     *  Stabilisce che la cella c in input appartiene al range.
+     *  Complessità: O(1)
+     *  @param c cella a cui settiamo il range
+     */
     public void setRange(MNKCell c) {
         range.add(c);
         if (range.size() > K)
             throw new IllegalStateException("Range too large for MNKStrategy");
     }
 
-    // O(1)
+    /**
+     *  Aggiunge la cella c alla MNKStrategy. Valuta inoltre le condizioni
+     *  di validità della MKNStrategy.
+     *  Complessità: O(1)
+     *  @param c cella tale per cui contains(c) restituisce True
+     *  @param B riferimento alla MNKBoard di gioco
+     */
     public void add(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE)
             throw new IllegalArgumentException("Free cell added to MNKStrategy!");
@@ -62,7 +117,13 @@ public class MNKStrategy {
                     "Trying to add cell [" + c.i + "," + c.j + "] in range " + range);
     }
 
-    // O(1)
+    /**
+     *  Rimuove la cella c dalla MNKStrategy. Valuta inoltre le condizioni
+     *  di validità della MKNStrategy.
+     *  Complessità: O(1)
+     *  @param c cella tale per cui contains(c) restituisce True
+     *  @param B riferimento alla MNKBoard di gioco
+     */
     public void remove(MNKCell c, MNKBoard B) {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE)
             throw new IllegalArgumentException("Free cell removed from MNKStrategy!");
@@ -79,22 +140,38 @@ public class MNKStrategy {
             throw new IllegalStateException("Negative number of cells in strategy!");
     }
 
-    // O(1)
+    /**
+     *  Complessità: O(1)
+     *  @return numero di celle del giocatore proprietario della MNKStrategy
+     */
     public int size() {
         return my_cells;
     }
 
-    // O(1)
+    /**
+     *  Complessità: O(1)
+     *  @return True se la MNKStrategy è a una mossa dalla vittoria
+     */
     public boolean winning() {
         return my_cells >= K-1;
     }
-    
-    // O(1)
+
+    /**
+     *  Complessità: O(1)
+     *  @return validità della MNKStrategy
+     */
     public boolean valid() {
         return valid;
     }
 
-    // O(K)
+    /**
+     *  Data una MNKStrategy S, calcola l'intersezione tra S e la MNKStrategy corrente.
+     *  Complessità: O(K)
+     *  @param S MNKStrategy di cui si vuole calcolare l'intersezione con la corrente
+     *  @param B riferimento alla MNKBoard di gioco
+     *  @return lista di MNKIntersection che, intuitivamente, rappresenta le celle
+     *          in cui le due MNKStrategy si intersecano
+     */
     public ArrayList<MNKIntersection> intersects(MNKStrategy S, MNKBoard B) {
         if (S.equals(this)) return null;
 
