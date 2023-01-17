@@ -78,7 +78,7 @@ public class MNKStrategy {
         if ((cellIndex(c)-cellIndex(range.get(0))) % x != 0) return false;
         else {
             int q = (cellIndex(c) - cellIndex(range.get(0))) / x;
-            return q > 0 && q < K;
+            return q >= 0 && q < K;
         }
     }
 
@@ -165,8 +165,32 @@ public class MNKStrategy {
     }
 
     /**
+     *  Complessità: O(1)
+     *  @param a range di interi
+     *  @param b range di interi
+     *  @return intersezione tra i due range in input
+     */
+    private int[] intersection(int[] a, int[] b) {
+        if (a[0]>b[1] || b[0]>a[1]) return null;
+        return new int[]{Math.max(a[0],b[0]), Math.min(a[1],b[1])};
+    }
+
+    /**
+     *  Determina, senza calcolarla, se può esistere l'intersezione tra due MNKStrategy.
+     *  Complessità: O(1)
+     *  @param s1 range della prima MNKStrategy
+     *  @param s2 range della seconda MNKStrategy
+     *  @return True se certamente esiste un'intersezione; False altrimenti
+     */
+    private boolean intersects(ArrayList<MNKCell> s1, ArrayList<MNKCell> s2) {
+        int[] i = intersection(new int[]{s1.get(0).i, s1.get(K - 1).i}, new int[]{s2.get(0).i, s2.get(K - 1).i});
+        int[] j = intersection(new int[]{s1.get(0).j, s1.get(K - 1).j}, new int[]{s2.get(0).j, s2.get(K - 1).j});
+        return i!=null && j!=null && intersection(i,j)!=null;
+    }
+
+    /**
      *  Data una MNKStrategy S, calcola l'intersezione tra S e la MNKStrategy corrente.
-     *  Complessità: O(K)
+     *  Complessità: O(K) se intersecano, O(1) altrimenti
      *  @param S MNKStrategy di cui si vuole calcolare l'intersezione con la corrente
      *  @param B riferimento alla MNKBoard di gioco
      *  @return lista di MNKIntersection che, intuitivamente, rappresenta le celle
@@ -174,6 +198,7 @@ public class MNKStrategy {
      */
     public ArrayList<MNKIntersection> intersects(MNKStrategy S, MNKBoard B) {
         if (S.equals(this)) return null;
+        if (!intersects(S.range, this.range)) return null;
 
         ArrayList<MNKIntersection> intersection = new ArrayList<>(K-1);
         for (MNKCell c : range) {
@@ -184,6 +209,19 @@ public class MNKStrategy {
         if (intersection.size() > K-1)
             throw new IllegalStateException("Two strategies cannot intersect in more than K-1 cells");
         return intersection.size() > 0 ? intersection : null;
+    }
+
+    /**
+     *  Complessità: O(K)
+     *  @param B MNKBoard attuale di gioco
+     *  @return la cella che, se marcata, porta alla vittoria
+     *          del giocatore a cui appartiene la MNKStrategy
+     */
+    public MNKCell getWinCell(MNKBoard B) {
+        for (MNKCell c : range)
+            if (B.cellState(c.i,c.j)==MNKCellState.FREE)
+                return c;
+        throw new IllegalStateException("Should have found a FREE cell in this MNKStrategy");
     }
 
     @Override

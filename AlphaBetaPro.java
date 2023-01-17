@@ -281,6 +281,15 @@ class AlphaBetaPro implements MNKPlayer {
             starting_hash = current_hash;
         }
 
+        // One-move win/lose check
+        if (max.winning()>=1 || min.winning()>=1) {
+            MNKCell c = max.winning()>=1 ? max.winningCell(B) : min.winningCell(B);
+            B.markCell(c.i,c.j);
+            current_hash = current_hash ^ zobristHash(c,B);
+            max.update(c,B); min.update(c,B);
+            return c;
+        }
+
         if (FC.length == 1)
             return FC[0];
 
