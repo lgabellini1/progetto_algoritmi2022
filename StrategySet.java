@@ -154,8 +154,7 @@ public class StrategySet {
                     down.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         down.add(a, B);
-                }
-                if (down.valid() && !set.contains(down)) {
+                } if (down.valid() && !set.contains(down)) {
                     set.add(down);
                     if (down.winning()) win_count++;
                     generated++;
@@ -171,8 +170,7 @@ public class StrategySet {
                     left.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         left.add(a, B);
-                }
-                if (left.valid() && !set.contains(left)) {
+                } if (left.valid() && !set.contains(left)) {
                     set.add(left);
                     if (left.winning()) win_count++;
                     generated++;
@@ -188,8 +186,7 @@ public class StrategySet {
                     right.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         right.add(a, B);
-                }
-                if (right.valid() && !set.contains(right)) {
+                } if (right.valid() && !set.contains(right)) {
                     set.add(right);
                     if (right.winning()) win_count++;
                     generated++;
@@ -205,8 +202,7 @@ public class StrategySet {
                     upleft.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         upleft.add(a, B);
-                }
-                if (upleft.valid() && !set.contains(upleft)) {
+                } if (upleft.valid() && !set.contains(upleft)) {
                     set.add(upleft);
                     if (upleft.winning()) win_count++;
                     generated++;
@@ -222,8 +218,7 @@ public class StrategySet {
                     upright.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         upright.add(a, B);
-                }
-                if (upright.valid() && !set.contains(upright)) {
+                } if (upright.valid() && !set.contains(upright)) {
                     set.add(upright);
                     if (upright.winning()) win_count++;
                     generated++;
@@ -239,8 +234,7 @@ public class StrategySet {
                     downleft.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         downleft.add(a, B);
-                }
-                if (downleft.valid() && !set.contains(downleft)) {
+                } if (downleft.valid() && !set.contains(downleft)) {
                     set.add(downleft);
                     if (downleft.winning()) win_count++;
                     generated++;
@@ -256,8 +250,7 @@ public class StrategySet {
                     downright.setRange(a);
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         downright.add(a, B);
-                }
-                if (downright.valid() && !set.contains(downright)) {
+                } if (downright.valid() && !set.contains(downright)) {
                     set.add(downright);
                     if (downright.winning()) win_count++;
                     generated++;
@@ -396,7 +389,17 @@ public class StrategySet {
         return win_count;
     }
 
-
+    /**
+     *  Complessità: O(n), dove n è la dimensione del set
+     *  @param B MNKBoard di gioco attuale
+     *  @return la cella c che, se marcata, porta alla vittoria
+     *          il giocatore possessore del set
+     */
+    public MNKCell winningCell(MNKBoard B) {
+        for (MNKStrategy S : set)
+            if (S.valid() && S.winning()) return S.getWinCell(B);
+        throw new IllegalStateException("Should have found a single-move win");
+    }
 
     // Test functions
     public MNKStrategy[] set() { return set.toArray(new MNKStrategy[0]); }
