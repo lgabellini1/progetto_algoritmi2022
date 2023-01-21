@@ -1,6 +1,7 @@
 package mnkgame;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  *  Fila di K celle consecutive nella MNKBoard. Rappresenta una potenziale
@@ -23,7 +24,7 @@ public class MNKStrategy {
      */
     private final ArrayList<MNKCell> range;
 
-    private final int M,N,K;
+    private final int N,K;
 
     /**
      *  Giocatore a cui appartiene la MNKStrategy.
@@ -44,7 +45,6 @@ public class MNKStrategy {
     public MNKStrategy(MNKBoard B, MNKCell c) {
         my_cells = adv_cells = 0;
         range    = new ArrayList<>(B.K);
-        M        = B.M; 
         N        = B.N; 
         K        = B.K;
         player   = B.cellState(c.i, c.j);
@@ -52,6 +52,16 @@ public class MNKStrategy {
 
         if (player == MNKCellState.FREE)
             throw new IllegalArgumentException("Cell in input is unmarked: player is FREE.");
+    }
+
+    public MNKStrategy(MNKStrategy S) {
+        my_cells  = S.my_cells;
+        adv_cells = S.adv_cells;
+        range     = new ArrayList<>(List.of(S.range.toArray(new MNKCell[0])));
+        N         = S.N;
+        K         = S.K;
+        player    = S.player;
+        valid     = S.valid;
     }
 
     /**
@@ -166,56 +176,17 @@ public class MNKStrategy {
 
     /**
      *  Complessità: O(1)
-     *  @param a range di interi
-     *  @param b range di interi
-     *  @return intersezione tra i due range in input
+     *  @return celle nel range della MNKStrategy
      */
-    private int[] intersection(int[] a, int[] b) {
-        if (a[0]>b[1] || b[0]>a[1]) return null;
-        return new int[]{Math.max(a[0],b[0]), Math.min(a[1],b[1])};
-    }
-
-    /**
-     *  Determina, senza calcolarla, se può esistere l'intersezione tra due MNKStrategy.
-     *  Complessità: O(1)
-     *  @param s1 range della prima MNKStrategy
-     *  @param s2 range della seconda MNKStrategy
-     *  @return True se certamente esiste un'intersezione; False altrimenti
-     */
-    private boolean intersects(ArrayList<MNKCell> s1, ArrayList<MNKCell> s2) {
-        int[] i = intersection(new int[]{s1.get(0).i, s1.get(K - 1).i}, new int[]{s2.get(0).i, s2.get(K - 1).i});
-        int[] j = intersection(new int[]{s1.get(0).j, s1.get(K - 1).j}, new int[]{s2.get(0).j, s2.get(K - 1).j});
-        return i!=null && j!=null && intersection(i,j)!=null;
-    }
-
-    /**
-     *  Data una MNKStrategy S, calcola l'intersezione tra S e la MNKStrategy corrente.
-     *  Complessità: O(K) se intersecano, O(1) altrimenti
-     *  @param S MNKStrategy di cui si vuole calcolare l'intersezione con la corrente
-     *  @param B riferimento alla MNKBoard di gioco
-     *  @return lista di MNKIntersection che, intuitivamente, rappresenta le celle
-     *          in cui le due MNKStrategy si intersecano
-     */
-    public ArrayList<MNKIntersection> intersects(MNKStrategy S, MNKBoard B) {
-        if (S.equals(this)) return null;
-        if (!intersects(S.range, this.range)) return null;
-
-        ArrayList<MNKIntersection> intersection = new ArrayList<>(K-1);
-        for (MNKCell c : range) {
-            if (B.cellState(c.i, c.j) == MNKCellState.FREE && S.contains(c))
-                intersection.add(new MNKIntersection(c, B, new MNKStrategy[] { this, S }));
-        }
-
-        if (intersection.size() > K-1)
-            throw new IllegalStateException("Two strategies cannot intersect in more than K-1 cells");
-        return intersection.size() > 0 ? intersection : null;
+    public ArrayList<MNKCell> range() {
+        return range;
     }
 
     /**
      *  Complessità: O(K)
      *  @param B MNKBoard attuale di gioco
-     *  @return la cella che, se marcata, porta alla vittoria
-     *          del giocatore a cui appartiene la MNKStrategy
+     *  @return la cella che, se marcata, porta alla vittoria del
+     *      giocatore a cui appartiene la MNKStrategy
      */
     public MNKCell getWinCell(MNKBoard B) {
         for (MNKCell c : range)
@@ -243,6 +214,6 @@ public class MNKStrategy {
     @Override
     public String toString() {
         return "MNKStrategy from [" + range.get(0).i + "," + range.get(0).j + "] to [" +
-            range.get(K-1).i + "," + range.get(K-1).j + "]";
+            range.get(K-1).i + "," + range.get(K-1).j + "] - player=" + player;
     }
 }

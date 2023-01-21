@@ -14,6 +14,8 @@ public class StrategySet {
      */
     private final ArrayList<MNKStrategy> set;
 
+    public final IntersectionSet intersections;
+
     public  final MNKCellState player, adv;
 
     /**
@@ -28,7 +30,7 @@ public class StrategySet {
      */
     private final ArrayDeque<ArrayList<InvMNKStrategy>> invalid_stack;
 
-    private final int K;
+    private final int N,K;
 
     /**
      *  Numero di MNKStrategy vincenti (a K-1 simboli) nel set.
@@ -39,20 +41,7 @@ public class StrategySet {
      *  Classe ausiliaria per invalid_stack. Memorizza una MNKStrategy con
      *  il suo indice nel set nel momento in cui è stata resa invalida.
      */
-    private static class InvMNKStrategy {
-        private final MNKStrategy S;
-        private final int index;
-
-        private InvMNKStrategy(MNKStrategy S, int i) {
-            this.S = S;
-            index  = i;
-        }
-
-        @Override
-        public String toString() {
-            return S.toString();
-        }
-    }
+    private record InvMNKStrategy(MNKStrategy S, int index) {}
 
     /**
      * Complessità: O(1)
@@ -61,12 +50,56 @@ public class StrategySet {
      */
     public StrategySet(MNKBoard B, MNKCellState player) {
         set             = new ArrayList<>(4*B.M*B.N);
+        intersections   = new IntersectionSet(B);
         this.player     = player;
         generated_stack = new ArrayDeque<>(B.getFreeCells().length);
         invalid_stack   = new ArrayDeque<>(B.getFreeCells().length);
         adv             = player == MNKCellState.P1 ? MNKCellState.P2 : MNKCellState.P1;
+        N               = B.N;
         K               = B.K;
         win_count       = 0;
+    }
+
+    /**
+     *  Complessità: O(K)
+     *  @param S MNKStrategy che si vuole aggiungere al set
+     *  @param B configurazione attuale di gioco
+     *  @param Q attuale priority queue delle mosse
+     *  @param index indice al quale viene aggiunto S
+     */
+    private void add(MNKStrategy S, MNKBoard B, MovesQueue Q, int index) {
+        set.add(index,S);
+        if (S.winning()) win_count++;
+
+        for (MNKCell cell : S.range()) {
+            MNKIntersection i = intersections.get(cell);
+            i.add(S);
+
+            if (Q.player==S.player && B.cellState(cell.i,cell.j)==MNKCellState.FREE) {
+                int p = i.valid(B) ? 0 : 1;
+                Q.shiftPriority(cell,B,p);
+            }
+        }
+    }
+
+    /**
+     *  Complessità: O(K)
+     *  @param S MNKStrategy che si vuole rimuovere dal set (poiché invalidata)
+     *  @param B configurazione attuale di gioco
+     *  @param Q attuale priority queue delle mosse
+     */
+    private void remove(MNKStrategy S, MNKBoard B, MovesQueue Q) {
+        if (S.winning()) win_count--;
+
+        for (MNKCell cell : S.range()) {
+            MNKIntersection i = intersections.get(cell);
+            i.remove(S);
+
+            if (Q.player==S.player && B.cellState(cell.i,cell.j)==MNKCellState.FREE) {
+                int p = i.valid(B) ? 0 : 2;
+                Q.shiftPriority(cell,B,p);
+            }
+        }
     }
 
     /**
@@ -82,11 +115,12 @@ public class StrategySet {
      *  @param c cella marcata nell'algoritmo
      *  @param B MNKBoard di gioco
      */
-    public void update(MNKCell c, MNKBoard B) {
+    public void update(MNKCell c, MNKBoard B, MovesQueue Q) {
         if (B.cellState(c.i,c.j)==MNKCellState.FREE)
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
 
-        // 1)
+
+        //                       1)
         /* -------------------------------------------------- */
         Iterator<MNKStrategy> iter = set.iterator(); int t = 0;
 
@@ -105,10 +139,10 @@ public class StrategySet {
             if (S.contains(c)) {
                 boolean winning = S.winning();
                 S.add(c, B);
-                if (!S.valid()) {
+                if (!S.valid()) { // S è stata invalidata
                     invalids.add(new InvMNKStrategy(S, t));
+                    remove(S,B,Q);
                     iter.remove();
-                    if (winning) win_count--;
                 } else if (!winning && S.winning())
                     win_count++;
             }
@@ -118,13 +152,10 @@ public class StrategySet {
         /* -------------------------------------------------- */
 
 
-        // 2)
+        //                       2)
         /* -------------------------------------------------- */
         if (B.cellState(c.i, c.j) == adv)
-            /* Se c appartiene all'avversario, allora sicuramente le generate saranno 0.
-               Infatti l'avversario potrebbe generare delle MNKStrategy, ma solo nel set
-               a lui corrispondente. */
-            generated_stack.push(0);
+            generated_stack.push(0); // Se c appartiene all'avversario, allora sicuramente le generate saranno 0
         else {
             // Numero di MNKStrategy generate nel dato turno.
             int generated = 0;
@@ -139,8 +170,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         up.add(a, B);
                 } if (up.valid() && !set.contains(up)) {
-                    set.add(up);
-                    if (up.winning()) win_count++;
+                    add(up,B,Q,set.size());
                     generated++;
                 }
             }
@@ -155,8 +185,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         down.add(a, B);
                 } if (down.valid() && !set.contains(down)) {
-                    set.add(down);
-                    if (down.winning()) win_count++;
+                    add(down,B,Q,set.size());
                     generated++;
                 }
             }
@@ -171,8 +200,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         left.add(a, B);
                 } if (left.valid() && !set.contains(left)) {
-                    set.add(left);
-                    if (left.winning()) win_count++;
+                    add(left,B,Q,set.size());
                     generated++;
                 }
             }
@@ -187,8 +215,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         right.add(a, B);
                 } if (right.valid() && !set.contains(right)) {
-                    set.add(right);
-                    if (right.winning()) win_count++;
+                    add(right,B,Q,set.size());
                     generated++;
                 }
             }
@@ -203,8 +230,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         upleft.add(a, B);
                 } if (upleft.valid() && !set.contains(upleft)) {
-                    set.add(upleft);
-                    if (upleft.winning()) win_count++;
+                    add(upleft,B,Q,set.size());
                     generated++;
                 }
             }
@@ -219,8 +245,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         upright.add(a, B);
                 } if (upright.valid() && !set.contains(upright)) {
-                    set.add(upright);
-                    if (upright.winning()) win_count++;
+                    add(upright,B,Q,set.size());
                     generated++;
                 }
             }
@@ -235,8 +260,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         downleft.add(a, B);
                 } if (downleft.valid() && !set.contains(downleft)) {
-                    set.add(downleft);
-                    if (downleft.winning()) win_count++;
+                    add(downleft,B,Q,set.size());
                     generated++;
                 }
             }
@@ -251,8 +275,7 @@ public class StrategySet {
                     if (B.cellState(a.i, a.j) != MNKCellState.FREE)
                         downright.add(a, B);
                 } if (downright.valid() && !set.contains(downright)) {
-                    set.add(downright);
-                    if (downright.winning()) win_count++;
+                    add(downright,B,Q,set.size());
                     generated++;
                 }
             }
@@ -261,16 +284,34 @@ public class StrategySet {
         }
         /* -------------------------------------------------- */
 
-        // Test
-        /*if (win_count < 0)
+        // Test di correttezza
+        if (win_count < 0)
             throw new IllegalStateException("Negative win count");
         if (win_count > set.size())
             throw new IllegalStateException("More winning strategies (" + win_count +
                     ") than factual strategies (" + set.size());
 
+        /*
         if (set.size() + invalid_size() != gen_size())
             throw new IllegalStateException(player + ": invariant broken!\nSet is: " + set + "\nInvalids are: " +
-                    invalids + "\nGenerated number is: " + gen_size());*/
+                    invalids + "\nGenerated number is: " + gen_size());
+        ArrayList<MNKIntersection> all = new ArrayList<>();
+        for (MNKStrategy S : set)
+            for (MNKStrategy T : set) {
+                ArrayList<MNKIntersection> I = S.intersects(T,B);
+                if (I!=null) {
+                    for (MNKIntersection i : I)
+                        if (!all.contains(i)) all.add(i);
+                }
+            }
+        if (intersections.size(B)!=all.size()) {
+            AlphaBetaPro.print(B);
+            System.out.println("Set state:");
+            print();
+            throw new IllegalStateException("Intersection computation is not correct!\n" +
+                    "Correct ones are: " + all + "\n(set size is " + intersections.size(B) + ")");
+        }
+        */
     }
 
     /**
@@ -292,85 +333,57 @@ public class StrategySet {
      *  @param c cella smarcata nell'algoritmo
      *  @param B MNKBoard di gioco
      */
-    public void undo(MNKCell c, MNKBoard B) {
+    public void undo(MNKCell c, MNKBoard B, MovesQueue Q) {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE)
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
 
-        // 1)
+
+        //                        1)
         /* -------------------------------------------------- */
-        int MAX = generated_stack.pop();
-        int n = set.size() - 1;
+        int MAX = generated_stack.pop(), n = set.size() - 1;
         for (int i = n; i > n - MAX; i--) {
-            if (set.get(i).winning())
-                win_count--;
+            remove(set.get(i),B,Q);
             set.remove(i);
         }
         /* -------------------------------------------------- */
 
 
-        // 2)
+        //                        2)
         /* -------------------------------------------------- */
         ArrayList<InvMNKStrategy> invalids = invalid_stack.pop();
-        for (InvMNKStrategy S : invalids) {
-            set.add(S.index, S.S);
-            if (S.S.winning())
-                win_count++;
-        }
+        for (InvMNKStrategy S : invalids)
+            add(S.S,B,Q,S.index);
         /* -------------------------------------------------- */
 
 
-        // 3)
+        //                        3)
         /* -------------------------------------------------- */
         for (MNKStrategy S : set) {
             if (S.contains(c)) {
                 boolean winning = S.winning();
-                S.remove(c,B);
+                S.remove(c, B);
 
-                if (!S.valid())
-                    throw new IllegalStateException("Invalid strategy " + S + " left in the set");
-
-                if (winning && !S.winning())
-                    win_count--;
-                else if (!winning && S.winning()) {
-                    win_count++;
+                if (!S.valid()) {
+                    throw new IllegalStateException("Invalid strategy " + S + " left in the set\n" +
+                            "Currently removing cell [" + c.i + "," + c.j + "]");
                 }
+
+                if (winning && !S.winning()) win_count--;
+                else if (!winning && S.winning()) win_count++;
             }
         }
         /* -------------------------------------------------- */
 
-        // Test
-        /* if (win_count < 0)
+
+        // Test di correttezza
+        if (win_count < 0)
             throw new IllegalStateException("Negative win count");
         if (win_count > set.size())
             throw new IllegalStateException("More winning strategies (" + win_count +
                     ") than factual strategies (" + set.size() + ")");
-
-        if (set.size() + invalid_size() != gen_size())
+        /* if (set.size() + invalid_size() != gen_size())
             throw new IllegalStateException(player + ": invariant broken! Set is: " + set + "\nInvalids are: " +
                     invalids + "\nGenerated number is: " + gen_size()); */
-    }
-
-    /**
-     *  Genera tutte le MNKIntersection possibili dal set. Confronta cioè ogni coppia
-     *  di MNKStrategy nel set e calcolane le intersezioni.
-     *  Complessità: O(n^2 x K), dove n è la dimensione del set
-     *  @param B MNKBoard di gioco
-     *  @return set delle intersezioni generato
-     */
-    public IntersectionSet generateFrom(MNKBoard B) {
-        IntersectionSet iSet = new IntersectionSet(B);
-        for (MNKStrategy S : set) {
-            for (MNKStrategy T : set) {
-                if (S != T) {
-                    ArrayList<MNKIntersection> intersection = S.intersects(T, B);
-                    if (intersection != null) {
-                        iSet.addAll(intersection);
-                        if (intersection.get(0).winning())
-                            return iSet;
-                    }
-                }
-            }
-        } return iSet.size() > 0 ? iSet : null;
     }
 
     /**
@@ -398,35 +411,14 @@ public class StrategySet {
     public MNKCell winningCell(MNKBoard B) {
         for (MNKStrategy S : set)
             if (S.valid() && S.winning()) return S.getWinCell(B);
-        throw new IllegalStateException("Should have found a single-move win");
+        throw new IllegalStateException("Should have found a single-move win.");
     }
 
-    // Test functions
-    public MNKStrategy[] set() { return set.toArray(new MNKStrategy[0]); }
-
-    public void test_print() {
+    // Debug
+    public void print() {
         System.out.println(player + ": ");
-        System.out.println("Set contains " + size() + " strategies.");
-        System.out.println("->" + set);
-        System.out.println("Set has stored " + invalid_size() + " invalid strategies.");
-        System.out.println("->" + invalid_stack);
-        System.out.println("Winning strategies are " + win_count);
-        System.out.println("Generated strats stack state: " + generated_stack);
-
-        System.out.println();
-    }
-
-    private int gen_size() {
-        int tot = 0;
-        for (int n : generated_stack)
-            tot += n;
-        return tot;
-    }
-
-    private int invalid_size() {
-        int tot = 0;
-        for (ArrayList<InvMNKStrategy> l : invalid_stack)
-            tot += l.size();
-        return tot;
+        for (MNKStrategy S : set)
+            System.out.println(S);
+        System.out.print('\n');
     }
 }

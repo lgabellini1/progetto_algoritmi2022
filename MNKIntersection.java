@@ -1,110 +1,89 @@
 package mnkgame;
 
-import java.util.LinkedList;
 
-/**
- *  Rappresenta la cella in cui due o più
- *  MNKStrategy si intersecano.
- */
-public class MNKIntersection {
+class MNKIntersection {
 
     /**
-     *  Cella d'intersezione.
+     *  Cella dove avviene l'intersezione.
      */
     public final MNKCell c;
 
     /**
-     *  Elenco delle MNKStrategy che si intersecano in c.
+     *  Numero di MNKStrategy intersecanti in c: perché l'intersezione
+     *  sia sensata, deve essere strats>=2.
      */
-    private final LinkedList<MNKStrategy> strategies;
+    private int strats;
 
-    private final int K;
+    private final int N;
 
-    /**
-     *  Numero di strategie a K-2 simboli. Se questo valore è
-     *  maggiore o uguale di 2, allora la configurazione equivale
-     *  a una vittoria.
-     */
-    private int K_minus2;
+    public MNKIntersection(MNKCell c, MNKBoard B) {
+        this.c = c;
+        strats = 0;
+        N      = B.N;
+    }
 
-    /**
-     *  Complessità: O(1)
-     *  @param c cella d'intersezione
-     *  @param B MNKBoard di gioco
-     *  @param strats strategie intersecanti in c
-     */
-    public MNKIntersection(MNKCell c, MNKBoard B, MNKStrategy[] strats) {
-        this.c     = c;
-        strategies = new LinkedList<>();
-        K          = B.K;
-        K_minus2   = 0;
-
-        for (MNKStrategy S : strats)
-            add(S);
+    private int cellIndex(MNKCell c) {
+        return c.i * N + c.j;
     }
 
     /**
-     *  Aggiunge un'ulteriore MNKStrategy S che passa per c.
+     *  Aggiunge una MNKStrategy passante per c.
      *  Complessità: O(1)
-     *  @param S MNKStrategy aggiunta
+     *  @param S MNKStrategy contenente c
      */
     public void add(MNKStrategy S) {
-        if (S.valid()) {
-            strategies.add(S);
-            if (S.size() >= K-2) 
-                K_minus2++;
-        }
+        if (!S.contains(c))
+            throw new IllegalStateException("This MNKStrategy does not contain c");
+        strats++;
     }
 
     /**
-     *  Data una MNKIntersection I equivalente (ovvero, con la stessa cella c di intersezione),
-     *  fondi in uno solo i due insiemi di MNKStrategy.
-     *  Complessità: O(n), dove n è il numero di MNKStrategy intersecanti in I
-     *  @param I intersezione equivalente
+     *  Rimuove una MNKStrategy passante per c.
+     *  Complessità: O(1)
+     *  @param S MNKStrategy contenente c
      */
-    public void merge(MNKIntersection I) {
-        if (I.equals(this)) {
-            for (MNKStrategy S : I.strategies)
-                if (!strategies.contains(S))
-                    add(S);
-        } 
+    public void remove(MNKStrategy S) {
+        if (!S.contains(c))
+            throw new IllegalStateException("This MNKStrategy does not contain c");
+        strats--;
+
+        if (strats<0)
+            throw new IllegalStateException("Negative number of MNKStrategy passes through this cell");
     }
 
     /**
      *  Complessità: O(1)
-     *  @return True se sono presenti almeno due MNKStrategy a k-2 simboli
-     */
-    public boolean winning() {
-        return K_minus2>=2;
-    }
-
-    /**
-     *  Complessità: O(1)
-     *  @return numero di MKNStrategy intersecanti in c
+     *  @return numero di MNKStrategy intersecanti qui
      */
     public int cardinality() {
-        return strategies.size();
+        return strats;
+    }
+
+    /**
+     *  Complessità: O(1)
+     *  @param B configurazione attuale di gioco
+     *  @return True se l'intersezione è valida (cioè libera) ed è
+     *      attraversata da più di due MNKStrategy; False altrimenti
+     */
+    public boolean valid(MNKBoard B) {
+        return B.cellState(c.i,c.j)==MNKCellState.FREE && strats>=2;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (o == null) return false;
-        if (!(o instanceof MNKIntersection)) return false;
-
-        MNKIntersection I = (MNKIntersection) o;
-        if (I.c.i == c.i && I.c.j == c.j && I.c.state != c.state)
-            throw new IllegalStateException("Same cell should have the same state");
-        return I.c.equals(c);
-    }
-
-    @Override
-    public int hashCode() {
-        return c.hashCode();
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MNKIntersection that = (MNKIntersection) o;
+        return c.i == that.c.i && c.j == that.c.j;
     }
 
     @Override
     public String toString() {
-        return "Intersection at " + c.toString();
+        return "[" + c.i + "," + c.j + "] - strats=" + strats;
+    }
+
+    @Override
+    public int hashCode() {
+        return cellIndex(c);
     }
 }
