@@ -122,7 +122,9 @@ import java.util.*;
 
 public class MovesQueue {
     private final PriorityQueue<MNKCellPriority> Q;
-    private final HashMap<Integer, MNKCell> hTable;
+    private final HashMap<Integer, MNKCell> hTable; // "Bodyguard": permette di verificare in O(1)
+    // se una data cella è presente nella Priority Queue
+
     private final HashMap<Integer, Integer> pTable; // Priority-table
 
     public final MNKCellState player;
@@ -195,9 +197,9 @@ public class MovesQueue {
 
         if (priority==MIN_PRIORITY)
             remove(c, B);
-        else {
+        else { // Rimozione e re-inserimento a priorità aggiornata
             if (hTable.get(cellIndex(c)) != null)
-                Q.remove(cp); // Poi la reinseriremo se non è a priorità minima
+                Q.remove(cp);
             else hTable.put(cellIndex(c), c);
             Q.add(cp);
         }
