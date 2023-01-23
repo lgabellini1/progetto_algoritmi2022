@@ -1,5 +1,5 @@
 1. Migliorare eval() (AlphaBetaPro)
 2. Priorità massima per caselle vincenti/perdenti (MovesQueue)
 3. Cambiare generazione di MNKStrategy (non alle estremità di una casella, ma che la contengano) (StrategySet - update())
-4. Aggiungere priorità (MovesQueue)
+4. Aggiungere altre priorità (MovesQueue)
 5. Intersezioni vincenti (MNKIntersection-IntersectionSet)
