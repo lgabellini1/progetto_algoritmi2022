@@ -71,15 +71,15 @@ public class MovesQueue {
     public void shiftPriority(MNKCell c, MNKBoard B, int priority) {
         if (B.cellState(c.i,c.j)!=MNKCellState.FREE)
             throw new IllegalStateException("Can't change priority of marked cell");
-        if (priority<0 || priority>MIN_PRIORITY)
+        if ((priority<0 && priority!=-999) || priority>MIN_PRIORITY)
             throw new IllegalStateException("Invalid priority!");
 
         MNKCellPriority cp = new MNKCellPriority(c.i, c.j, B.cellState(c.i, c.j), priority);
         pTable.put(cellIndex(c), priority); // Aggiornamento priorità nella tabella
 
-        if (priority==MIN_PRIORITY)
+        if (hTable.get(cellIndex(c)) != null && priority==MIN_PRIORITY)
             remove(c, B);
-        else { // Rimozione e re-inserimento a priorità aggiornata
+        else if (priority!=MIN_PRIORITY) { // Rimozione e re-inserimento a priorità aggiornata
             if (hTable.get(cellIndex(c)) != null)
                 Q.remove(cp);
             else hTable.put(cellIndex(c), c);
