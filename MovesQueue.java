@@ -65,6 +65,7 @@ public class MovesQueue {
      *  Data una cella c, aggiorna la sua priorità nella coda di mosse.
      *  Complessità: O(n), dove n è la dimensione della
      *      coda, se c è contenuto; O(log n) altrimenti
+     *  TODO: assegnare priorità massima alle mosse vincenti;
      *  @param c cella di cui si vuole aggiornare la priorità
      *  @param priority nuova priorità
      */

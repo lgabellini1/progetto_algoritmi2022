@@ -14,12 +14,19 @@ class MNKIntersection {
      */
     private int strats;
 
-    private final int N;
+    /**
+     *  Numero di MNKStrategy intersecanti in c a K-2 simboli.
+     */
+    private int k_minus2;
+
+    private final int N,K;
 
     public MNKIntersection(MNKCell c, MNKBoard B) {
-        this.c = c;
-        strats = 0;
-        N      = B.N;
+        this.c   = c;
+        strats   = 0;
+        k_minus2 = 0;
+        N        = B.N;
+        K        = B.K;
     }
 
     private int cellIndex(MNKCell c) {
@@ -34,7 +41,12 @@ class MNKIntersection {
     public void add(MNKStrategy S) {
         if (!S.contains(c))
             throw new IllegalStateException("This MNKStrategy does not contain c");
+
         strats++;
+        if (S.size()>=K-2) k_minus2++;
+
+        if (k_minus2>strats)
+            throw new IllegalStateException("Error with k_minus2 in MNKIntersection");
     }
 
     /**
@@ -45,9 +57,11 @@ class MNKIntersection {
     public void remove(MNKStrategy S) {
         if (!S.contains(c))
             throw new IllegalStateException("This MNKStrategy does not contain c");
-        strats--;
 
-        if (strats<0)
+        strats--;
+        if (S.size()>=K-2) k_minus2--;
+
+        if (strats<0 || k_minus2<0)
             throw new IllegalStateException("Negative number of MNKStrategy passes through this cell");
     }
 
@@ -57,6 +71,15 @@ class MNKIntersection {
      */
     public int cardinality() {
         return strats;
+    }
+
+    /**
+     *  Complessità: O(1)
+     *  @param B configurazione attuale di gioco
+     *  @return True se questa intersezione porta alla vittoria; False altrimenti
+     */
+    public boolean winning(MNKBoard B) {
+        return valid(B) && k_minus2>=2;
     }
 
     /**

@@ -12,8 +12,8 @@ class IntersectionSet {
     private final int N;
 
     public IntersectionSet(MNKBoard B) {
-        set = new HashMap<>(B.M*B.N);
-        N   = B.N;
+        set     = new HashMap<>(B.M*B.N);
+        N       = B.N;
         for (MNKCell c : B.getFreeCells())
             set.put(cellIndex(c),new MNKIntersection(c,B));
     }
@@ -32,6 +32,17 @@ class IntersectionSet {
         if (i==null)
             throw new IllegalStateException("Null intersection in set!");
         return i;
+    }
+
+    /**
+     *  Complessità: O(n), dove n è la dimensione del set
+     *  @param B configurazione attuale di gioco
+     *  @return True se esiste almeno un'intersezione vincente; False altrimenti
+     */
+    public boolean winning(MNKBoard B) {
+        for (MNKIntersection i : set.values())
+            if (i.winning(B)) return true;
+        return false;
     }
 
     // Test functions

@@ -69,7 +69,8 @@ public class StrategySet {
      */
     private void add(MNKStrategy S, MNKBoard B, MovesQueue Q, int index) {
         set.add(index,S);
-        if (S.winning()) win_count++;
+        if (S.winning())
+            win_count++;
 
         for (MNKCell cell : S.range()) {
             MNKIntersection i = intersections.get(cell);
@@ -77,7 +78,7 @@ public class StrategySet {
 
             if (Q.player==S.player && B.cellState(cell.i,cell.j)==MNKCellState.FREE) {
                 int p = i.valid(B) ? 0 : 1;
-                Q.shiftPriority(cell,B,p);
+                Q.shiftPriority(cell, B, p);
             }
         }
     }
@@ -118,7 +119,6 @@ public class StrategySet {
     public void update(MNKCell c, MNKBoard B, MovesQueue Q) {
         if (B.cellState(c.i,c.j)==MNKCellState.FREE)
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
-
 
         //                       1)
         /* -------------------------------------------------- */

@@ -79,6 +79,10 @@ class AlphaBetaPro implements MNKPlayer {
         min.print();
         Q.printQueue();
         System.out.print('\n');
+        System.out.println("Marked [" + c.i + "," + c.j + "]");
+        print(B);
+        Q.printQueue();
+
          */
     }
 
@@ -97,7 +101,10 @@ class AlphaBetaPro implements MNKPlayer {
         min.print();
         Q.printQueue();
         System.out.print('\n');
-        */
+        System.out.println("Unmarked [" + c.i + "," + c.j + "]");
+        print(B);
+        Q.printQueue();
+         */
     }
 
     private double eval(MNKBoard B) {
@@ -107,40 +114,24 @@ class AlphaBetaPro implements MNKPlayer {
             return -1;
         else if (B.gameState() == MNKGameState.DRAW)
             return  0;
-        else { // TODO!
+        else { // TODO: ampliare il criterio di valutazione
             double eval = 0;
             if (myTurn(B)) {
                 if (max.winning()>=1) return +1;
                 if (min.winning()>=2) return -1;
                 else if (min.winning()==1)
                     eval -= 0.2;
-                /*
-                IntersectionSet maxISet = max.generateFrom(B);
-                if (maxISet != null) {
-                    //if (maxISet.winning())
-                        //return +1;
-                    if (maxISet.size() >= 1) {
-                        eval += 0.5;
-                        //if (maxISet.max() >= 3)
-                            //eval += 0.2;
-                    }
-                } */
+
+                if (max.intersections.winning(B))
+                    return +1;
             } else {
                 if (min.winning()>=1) return -1;
                 if (max.winning()>=2) return +1;
                 else if (max.winning()==1)
                     eval += 0.2;
-                /*
-                IntersectionSet minISet = min.generateFrom(B);
-                if (minISet != null) {
-                    //if (minISet.winning())
-                        //return -1;
-                    if (minISet.size() >= 1) {
-                        eval -= 0.5;
-                        //if (minISet.max() >= 3)
-                            //eval -= 0.2;
-                    }
-                }*/
+
+                if (min.intersections.winning(B))
+                    return -1;
             }
 
             if (max.size()>min.size())
