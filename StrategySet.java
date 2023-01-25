@@ -16,6 +16,8 @@ public class StrategySet {
      */
     private final ArrayList<MNKStrategy> set;
 
+    public final IntersectionSet intersections;
+
     public final MNKCellState player, adv;
 
     /**
@@ -30,16 +32,12 @@ public class StrategySet {
      */
     private final ArrayDeque<ArrayList<InvMNKStrategy>> invalid_stack;
 
-    private final int K;
+    private final int N, K;
 
     /**
      * Numero di MNKStrategy vincenti (a K-1 simboli) nel set.
      */
     private int win_count;
-
-    private Map<Integer, ArrayList<MNKCell>> celleConPriorita;
-
-    private HashMap<MNKCell, Integer> celleDaPriorizzare;
 
     /**
      * Classe ausiliaria per invalid_stack. Memorizza una MNKStrategy con
@@ -67,15 +65,63 @@ public class StrategySet {
      * @param player giocatore a cui è associato il set
      */
     public StrategySet(MNKBoard B, MNKCellState player) {
-        celleDaPriorizzare = new HashMap<>();
         set = new ArrayList<>(4 * B.M * B.N);
-        celleConPriorita = new HashMap<Integer, ArrayList<MNKCell>>();
+        intersections = new IntersectionSet(B);
         this.player = player;
         generated_stack = new ArrayDeque<>(B.getFreeCells().length);
         invalid_stack = new ArrayDeque<>(B.getFreeCells().length);
         adv = player == MNKCellState.P1 ? MNKCellState.P2 : MNKCellState.P1;
+        N = B.N;
         K = B.K;
         win_count = 0;
+    }
+
+    /**
+     * Complessità: O(K)
+     * 
+     * @param S     MNKStrategy che si vuole aggiungere al set
+     * @param B     configurazione attuale di gioco
+     * @param Q     attuale priority queue delle mosse
+     * @param index indice al quale viene aggiunto S
+     */
+    private void add(MNKStrategy S, MNKBoard B, MovesQueue Q, int index) {
+        set.add(index, S);
+        if (S.winning())
+            win_count++;
+
+        for (MNKCell cell : S.range()) {
+            if (Q.player == S.player && B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+                if (Q.isContained(cell)) {
+                    int priority = Q.getPriority(cell);
+                    priority = priority + 1;
+                    Q.shiftPriority(cell, B, priority);
+                } else {
+                    Q.shiftPriority(cell, B, 1);
+                }
+            }
+        }
+    }
+
+    /**
+     * Complessità: O(K)
+     * 
+     * @param S MNKStrategy che si vuole rimuovere dal set (poiché invalidata)
+     * @param B configurazione attuale di gioco
+     * @param Q attuale priority queue delle mosse
+     */
+    private void remove(MNKStrategy S, MNKBoard B, MovesQueue Q) {
+        if (S.winning())
+            win_count--;
+
+        for (MNKCell cell : S.range()) {
+            MNKIntersection i = intersections.get(cell);
+            i.remove(S);
+
+            if (Q.player == S.player && B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+                int p = i.valid(B) ? 0 : 2;
+                Q.shiftPriority(cell, B, p);
+            }
+        }
     }
 
     /**
@@ -92,9 +138,18 @@ public class StrategySet {
      * @param c cella marcata nell'algoritmo
      * @param B MNKBoard di gioco
      */
-    public void update(MNKCell c, MNKBoard B) {
-        if (B.cellState(c.i, c.j) == MNKCellState.FREE)
+    public void update(MNKCell c, MNKBoard B, MovesQueue Q) {
+        if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
+        }
+        if (B.cellState(c.i, c.j) == adv) {
+            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
+                    + " e il mio avversario ha giocato la cella : [" + c.i + "," + c.j + "] "
+                    + "---------------------------" + "\n");
+        } else {
+            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
+                    + " e ho giocato la cella : [" + c.i + "," + c.j + "] " + "---------------------------" + "\n");
+        }
 
         // 1)
         /* -------------------------------------------------- */
@@ -120,63 +175,10 @@ public class StrategySet {
             if (S.contains(c)) {
                 boolean winning = S.winning();
                 S.add(c, B);
-                if (S.valid()) {
-                    int priorita_da_rimuovere = celleDaPriorizzare.get(c);
-                    celleDaPriorizzare.remove(c);
-                    ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                    array.remove(c);
-                    celleConPriorita.put(priorita_da_rimuovere, array);
-
-                }
-
-                if (!S.valid()) {
-                    // private Map<Integer, ArrayList<MNKCell>> celleConPriorita;
-                    // private HashMap<MNKCell, Integer> celleDaPriorizzare;
-                    ArrayList<MNKCell> celleDellaStrategia = S.getRange();
-                    for (MNKCell cella : celleDellaStrategia) {
-                        int priorita_da_rimuovere = celleDaPriorizzare.get(cella);
-                        if (priorita_da_rimuovere == 1) {
-                            celleDaPriorizzare.remove(cella);
-                            ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                            array.remove(cella);
-                            celleConPriorita.put(priorita_da_rimuovere, array);
-                        } else if (priorita_da_rimuovere == 3) {
-                            int nuova_priorita = 1;
-                            celleDaPriorizzare.replace(cella, priorita_da_rimuovere, nuova_priorita);
-                            ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                            array.remove(cella);
-                            celleConPriorita.put(priorita_da_rimuovere, array);
-                            if (celleConPriorita.get(nuova_priorita) != null) {
-                                ArrayList<MNKCell> array2 = celleConPriorita.remove(nuova_priorita);
-                                array2.add(cella);
-                                celleConPriorita.put(nuova_priorita, array2);
-                            } else {
-                                ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                array2.add(cella);
-                                celleConPriorita.put(nuova_priorita, array2);
-                            }
-
-                        } else if (priorita_da_rimuovere > 3) {
-                            int nuova_priorita = priorita_da_rimuovere - 1;
-                            celleDaPriorizzare.replace(cella, priorita_da_rimuovere, nuova_priorita);
-                            ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                            array.remove(cella);
-                            celleConPriorita.put(priorita_da_rimuovere, array);
-                            if (celleConPriorita.get(nuova_priorita) != null) {
-                                ArrayList<MNKCell> array2 = celleConPriorita.remove(nuova_priorita);
-                                array2.add(cella);
-                                celleConPriorita.put(nuova_priorita, array2);
-                            } else {
-                                ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                array2.add(cella);
-                                celleConPriorita.put(nuova_priorita, array2);
-                            }
-                        }
-                    }
+                if (!S.valid()) { // S è stata invalidata
                     invalids.add(new InvMNKStrategy(S, t));
+                    remove(S, B, Q);
                     iter.remove();
-                    if (winning)
-                        win_count--;
                 } else if (!winning && S.winning())
                     win_count++;
             }
@@ -187,689 +189,30 @@ public class StrategySet {
 
         // 2)
         /* -------------------------------------------------- */
-        if (B.cellState(c.i, c.j) == adv) {
-            /*
-             * Se c appartiene all'avversario, allora sicuramente le generate saranno 0.
-             * Infatti l'avversario potrebbe generare delle MNKStrategy, ma solo nel set
-             * a lui corrispondente.
-             */
-            generated_stack.push(0);
-        } else {
+        if (B.cellState(c.i, c.j) == adv)
+            generated_stack.push(0); // Se c appartiene all'avversario, allora sicuramente le generate saranno 0
+        else {
             // Numero di MNKStrategy generate nel dato turno.
             int generated = 0;
 
-            // Up
-            // private Map<Integer, ArrayList<MNKCell>> celleConPriorita;
-            // private HashMap<MNKCell, Integer> celleDaPriorizzare;
-            if (c.i - (K - 1) >= 0) {
-                MNKStrategy up = new MNKStrategy(B, c);
+            generated += generaOrizzontali(c, B, 0, Q);
 
-                for (int i = c.i - (K - 1); i <= c.i && up.valid(); i++) {
-                    MNKCell a = new MNKCell(i, c.j, B.cellState(i, c.j));
+            generated += generaVerticali(c, B, 0, Q);
 
-                    up.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        up.add(a, B);
-                }
-                if (up.valid() && !set.contains(up)) {
-                    set.add(up);
-                    ArrayList<MNKCell> celleDellaStrategia = up.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
+            generated += generaDiagonali(c, B, 0, Q);
 
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    // arriva cella con priorita 1
-                                    // 1) rimuovo tutte le celle (l'array in celleConPriorita) con priorita 1
-                                    // 2) rimuovo dall'array delle celle con priorita 1 quella che sto analizzando
-                                    // della strategia che ho appena aggiunto
-                                    // 3) l'array delle celle con priorita 1 lo rimetto dentro
-                                    // 4) modifico la priorita della cella appena aggiunta da 1 a 3 in
-                                    // celleDaPriorizzare
-                                    // 5) rimuovo tutte le celle (l'array in celleConPriorita) con priorita 3
-                                    // 6) aggiungo alle celle con priorita 3 la cella che sto analizzando
-                                    // 7) l'array delle celle con priorita 3 lo rimetto dentro
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-
-                    if (up.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Down
-            if (c.i + K - 1 < B.M) {
-                MNKStrategy down = new MNKStrategy(B, c);
-
-                for (int i = c.i; i <= c.i + K - 1 && down.valid(); i++) {
-                    MNKCell a = new MNKCell(i, c.j, B.cellState(i, c.j));
-                    down.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        down.add(a, B);
-                }
-                if (down.valid() && !set.contains(down)) {
-                    set.add(down);
-                    ArrayList<MNKCell> celleDellaStrategia = down.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (down.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Left
-            if (c.j - (K - 1) >= 0) {
-                MNKStrategy left = new MNKStrategy(B, c);
-
-                for (int j = c.j - (K - 1); j <= c.j && left.valid(); j++) {
-                    MNKCell a = new MNKCell(c.i, j, B.cellState(c.i, j));
-                    left.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        left.add(a, B);
-                }
-                if (left.valid() && !set.contains(left)) {
-                    set.add(left);
-                    ArrayList<MNKCell> celleDellaStrategia = left.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (left.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Right
-            if (c.j + K - 1 < B.N) {
-                MNKStrategy right = new MNKStrategy(B, c);
-
-                for (int j = c.j; j <= c.j + K - 1 && right.valid(); j++) {
-                    MNKCell a = new MNKCell(c.i, j, B.cellState(c.i, j));
-                    right.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        right.add(a, B);
-                }
-                if (right.valid() && !set.contains(right)) {
-                    set.add(right);
-                    ArrayList<MNKCell> celleDellaStrategia = right.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (right.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Up-left
-            if (c.i - (K - 1) >= 0 && c.j - (K - 1) >= 0) {
-                MNKStrategy upleft = new MNKStrategy(B, c);
-
-                for (int i = c.i - (K - 1), j = c.j - (K - 1); i <= c.i && j <= c.j && upleft.valid(); i++, j++) {
-                    MNKCell a = new MNKCell(i, j, B.cellState(i, j));
-                    upleft.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        upleft.add(a, B);
-                }
-                if (upleft.valid() && !set.contains(upleft)) {
-                    set.add(upleft);
-                    ArrayList<MNKCell> celleDellaStrategia = upleft.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (upleft.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Up-right
-            if (c.i - (K - 1) >= 0 && c.j + K - 1 < B.N) {
-                MNKStrategy upright = new MNKStrategy(B, c);
-
-                for (int i = c.i - (K - 1), j = c.j + K - 1; i <= c.i && j >= c.j && upright.valid(); i++, j--) {
-                    MNKCell a = new MNKCell(i, j, B.cellState(i, j));
-                    upright.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        upright.add(a, B);
-                }
-                if (upright.valid() && !set.contains(upright)) {
-                    set.add(upright);
-                    ArrayList<MNKCell> celleDellaStrategia = upright.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (upright.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Down-left
-            if (c.i + K - 1 < B.M && c.j - (K - 1) >= 0) {
-                MNKStrategy downleft = new MNKStrategy(B, c);
-
-                for (int i = c.i, j = c.j; i <= c.i + K - 1 && j >= c.j - (K - 1) && downleft.valid(); i++, j--) {
-                    MNKCell a = new MNKCell(i, j, B.cellState(i, j));
-                    downleft.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        downleft.add(a, B);
-                }
-                if (downleft.valid() && !set.contains(downleft)) {
-                    set.add(downleft);
-                    ArrayList<MNKCell> celleDellaStrategia = downleft.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (downleft.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
-            // Down-right
-            if (c.i + K - 1 < B.M && c.j + K - 1 < B.N) {
-                MNKStrategy downright = new MNKStrategy(B, c);
-
-                for (int i = c.i, j = c.j; i <= c.i + K - 1 && j <= c.j + K - 1 && downright.valid(); i++, j++) {
-                    MNKCell a = new MNKCell(i, j, B.cellState(i, j));
-                    downright.setRange(a);
-                    if (B.cellState(a.i, a.j) != MNKCellState.FREE)
-                        downright.add(a, B);
-                }
-                if (downright.valid() && !set.contains(downright)) {
-                    set.add(downright);
-                    ArrayList<MNKCell> celleDellaStrategia = downright.getRange();
-                    for (int i = 0; i < celleDellaStrategia.size(); i++) {
-                        System.out.println("Le celle della strategia sono: " + celleDellaStrategia.get(i));
-                    }
-                    for (MNKCell cella : celleDellaStrategia) {
-                        if (cella.state == MNKCellState.FREE) {
-                            if (celleDaPriorizzare.size() == 0) {
-                                ArrayList<MNKCell> array = new ArrayList<>();
-                                array.add(cella);
-                                celleConPriorita.put(1, array);
-                                celleDaPriorizzare.put(cella, 1);
-                            } else {
-
-                                if (celleDaPriorizzare.get(cella) != null) {
-
-                                    int priorita_casella = celleDaPriorizzare.get(cella);
-
-                                    if (priorita_casella == 1) {
-                                        int nuova_priorita = 3;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, 3);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-
-                                    } else if (priorita_casella >= 3) {
-                                        int nuova_priorita = priorita_casella + 1;
-                                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_casella);
-                                        array.remove(cella);
-                                        celleConPriorita.put(priorita_casella, array);
-                                        celleDaPriorizzare.replace(cella, priorita_casella, nuova_priorita);
-                                        if (celleConPriorita.get(nuova_priorita) != null) {
-                                            ArrayList<MNKCell> array2 = celleConPriorita
-                                                    .remove(nuova_priorita);
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        } else {
-                                            ArrayList<MNKCell> array2 = new ArrayList<MNKCell>();
-                                            array2.add(cella);
-                                            celleConPriorita.put(nuova_priorita, array2);
-                                        }
-                                    }
-                                } else {
-                                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                                    array.add(cella);
-                                    celleConPriorita.put(1, array);
-                                    celleDaPriorizzare.put(cella, 1);
-                                }
-
-                            }
-                        }
-
-                    }
-                    if (downright.winning())
-                        win_count++;
-                    generated++;
-                }
-            }
-
+            print();
             generated_stack.push(generated);
+
         }
         /* -------------------------------------------------- */
 
-        // Test
-        /*
-         * if (win_count < 0)
-         * throw new IllegalStateException("Negative win count");
-         * if (win_count > set.size())
-         * throw new IllegalStateException("More winning strategies (" + win_count +
-         * ") than factual strategies (" + set.size());
-         * 
-         * if (set.size() + invalid_size() != gen_size())
-         * throw new IllegalStateException(player + ": invariant broken!\nSet is: " +
-         * set + "\nInvalids are: " +
-         * invalids + "\nGenerated number is: " + gen_size());
-         */
-        ArrayList<MNKCell> priorita1 = celleConPriorita.get(1);
-        // ArrayList<MNKCell> priorita3 = celleConPriorita.get(3);
-        for (MNKCell cc : priorita1) {
-            System.out.println("Priorita1: [" + cc.i + "," + cc.j + "] ");
-        }
+        // Test di correttezza
+        if (win_count < 0)
+            throw new IllegalStateException("Negative win count");
+        if (win_count > set.size())
+            throw new IllegalStateException("More winning strategies (" + win_count +
+                    ") than factual strategies (" + set.size());
 
     }
 
@@ -893,109 +236,34 @@ public class StrategySet {
      * @param c cella smarcata nell'algoritmo
      * @param B MNKBoard di gioco
      */
-    public void undo(MNKCell c, MNKBoard B) {
-        if (B.cellState(c.i, c.j) == MNKCellState.FREE)
+    public void undo(MNKCell c, MNKBoard B, MovesQueue Q) {
+        if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
+        }
+        if (B.cellState(c.i, c.j) == adv) {
+            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
+                    + " e annullo la cella del mio avversario: [" + c.i + "," + c.j + "] "
+                    + "---------------------------" + "\n");
+        } else {
+            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
+                    + " e annullo la cella che ho giocato : [" + c.i + "," + c.j + "] " + "---------------------------"
+                    + "\n");
+        }
 
         // 1)
         /* -------------------------------------------------- */
-        int MAX = generated_stack.pop();
-        int n = set.size() - 1;
+        int MAX = generated_stack.pop(), n = set.size() - 1;
         for (int i = n; i > n - MAX; i--) {
-            if (set.get(i).winning())
-                win_count--;
-            MNKStrategy strategiaDaRimuovere = set.remove(i);
-            ArrayList<MNKCell> celleDellaStrategia = strategiaDaRimuovere.getRange();
-            for (MNKCell cella : celleDellaStrategia) {
-                int priorita_da_rimuovere = celleDaPriorizzare.get(cella);
-                if (priorita_da_rimuovere == 1) {
-                    celleDaPriorizzare.remove(cella);
-                    ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                    array.remove(cella);
-                    celleConPriorita.put(priorita_da_rimuovere, array);
-                } else if (priorita_da_rimuovere == 3) {
-                    celleDaPriorizzare.replace(cella, 3, 1);
-                    ArrayList<MNKCell> array = celleConPriorita.remove(3);
-                    array.remove(cella);
-                    celleConPriorita.put(3, array);
-                    ArrayList<MNKCell> array2 = celleConPriorita.remove(1);
-                    array2.add(cella);
-                    celleConPriorita.put(1, array2);
-                } else if (priorita_da_rimuovere > 3) {
-                    int nuova_priorita = priorita_da_rimuovere - 1;
-                    celleDaPriorizzare.replace(cella, priorita_da_rimuovere, nuova_priorita);
-                    ArrayList<MNKCell> array = celleConPriorita.remove(priorita_da_rimuovere);
-                    array.remove(cella);
-                    celleConPriorita.put(priorita_da_rimuovere, array);
-                    ArrayList<MNKCell> array2 = celleConPriorita.remove(nuova_priorita);
-                    array2.add(cella);
-                    celleConPriorita.put(nuova_priorita, array2);
-                }
-            }
+            remove(set.get(i), B, Q);
+            set.remove(i);
         }
         /* -------------------------------------------------- */
 
         // 2)
         /* -------------------------------------------------- */
         ArrayList<InvMNKStrategy> invalids = invalid_stack.pop();
-        for (InvMNKStrategy S : invalids) {
-            set.add(S.index, S.S);
-            ArrayList<MNKCell> celleDellaStrategia = S.S.getRange();
-            for (MNKCell cella : celleDellaStrategia) {
-                if (celleDaPriorizzare.get(cella) != null) {
-                    int priorita_cella = celleDaPriorizzare.get(cella);
-                    if (priorita_cella == 1) {
-                        ArrayList<MNKCell> array = celleConPriorita.remove(celleDaPriorizzare.get(cella));
-                        array.remove(cella);
-                        celleConPriorita.put(celleDaPriorizzare.get(cella), array);
-                        celleDaPriorizzare.replace(cella, celleDaPriorizzare.get(cella), 3);
-                        ArrayList<MNKCell> array2 = celleConPriorita.remove(celleDaPriorizzare.get(cella));
-                        array2.add(cella);
-                        celleConPriorita.put(celleDaPriorizzare.get(cella), array2);
-                    } else if (priorita_cella == 3) {
-                        int nuova_priorita = priorita_cella + 1;
-                        celleDaPriorizzare.replace(cella, 3, nuova_priorita);
-                        ArrayList<MNKCell> array = celleConPriorita.remove(3);
-                        array.remove(cella);
-                        celleConPriorita.put(3, array);
-                        if (celleConPriorita.get(nuova_priorita) == null) {
-                            ArrayList<MNKCell> array2 = new ArrayList<>();
-                            array2.add(cella);
-                            celleConPriorita.put(nuova_priorita, array2);
-                        } else {
-                            ArrayList<MNKCell> array2 = celleConPriorita.remove(nuova_priorita);
-                            array2.add(cella);
-                            celleConPriorita.put(nuova_priorita, array2);
-                        }
-                    } else if (priorita_cella > 3) {
-                        int nuova_priorita = priorita_cella + 1;
-                        celleDaPriorizzare.replace(cella, priorita_cella, nuova_priorita);
-                        ArrayList<MNKCell> array = celleConPriorita.remove(priorita_cella);
-                        array.remove(cella);
-                        celleConPriorita.put(priorita_cella, array);
-                        if (celleConPriorita.get(nuova_priorita) == null) {
-                            ArrayList<MNKCell> array2 = new ArrayList<>();
-                            array2.add(cella);
-                            celleConPriorita.put(nuova_priorita, array2);
-                        } else {
-                            ArrayList<MNKCell> array2 = celleConPriorita.remove(nuova_priorita);
-                            array2.add(cella);
-                            celleConPriorita.put(nuova_priorita, array2);
-                        }
-                    }
-
-                } else {
-                    ArrayList<MNKCell> array = celleConPriorita.remove(1);
-                    array.add(cella);
-                    celleConPriorita.put(1, array);
-                    celleDaPriorizzare.put(cella, 1);
-                }
-
-            }
-            if (S.S.winning())
-                win_count++;
-
-        }
+        for (InvMNKStrategy S : invalids)
+            add(S.S, B, Q, S.index);
         /* -------------------------------------------------- */
 
         // 3)
@@ -1004,74 +272,32 @@ public class StrategySet {
             if (S.contains(c)) {
                 boolean winning = S.winning();
                 S.remove(c, B);
-                int nuova_priorita = 0;
-                Iterator<MNKStrategy> iteratore = set.iterator();
-                while (iteratore.hasNext()) {
-                    MNKStrategy strategia = iteratore.next();
-                    if (strategia.contains(c)) {
-                        nuova_priorita++;
-                    }
+
+                if (!S.valid()) {
+                    throw new IllegalStateException("Invalid strategy " + S + " left in the set\n" +
+                            "Currently removing cell [" + c.i + "," + c.j + "]");
                 }
-                celleDaPriorizzare.put(c, nuova_priorita);
-                if (celleConPriorita.get(nuova_priorita) != null) {
-                    ArrayList<MNKCell> array = celleConPriorita.remove(nuova_priorita);
-                    array.add(c);
-                    celleConPriorita.put(nuova_priorita, array);
-                } else {
-                    ArrayList<MNKCell> array = new ArrayList<MNKCell>();
-                    array.add(c);
-                    celleConPriorita.put(nuova_priorita, array);
-                }
-                if (!S.valid())
-                    throw new IllegalStateException("Invalid strategy " + S + " left in the set");
 
                 if (winning && !S.winning())
                     win_count--;
-                else if (!winning && S.winning()) {
+                else if (!winning && S.winning())
                     win_count++;
-                }
             }
         }
         /* -------------------------------------------------- */
 
-        // Test
+        // Test di correttezza
+        if (win_count < 0)
+            throw new IllegalStateException("Negative win count");
+        if (win_count > set.size())
+            throw new IllegalStateException("More winning strategies (" + win_count +
+                    ") than factual strategies (" + set.size() + ")");
         /*
-         * if (win_count < 0)
-         * throw new IllegalStateException("Negative win count");
-         * if (win_count > set.size())
-         * throw new IllegalStateException("More winning strategies (" + win_count +
-         * ") than factual strategies (" + set.size() + ")");
-         * 
          * if (set.size() + invalid_size() != gen_size())
          * throw new IllegalStateException(player + ": invariant broken! Set is: " + set
          * + "\nInvalids are: " +
          * invalids + "\nGenerated number is: " + gen_size());
          */
-    }
-
-    /**
-     * Genera tutte le MNKIntersection possibili dal set. Confronta cioè ogni coppia
-     * di MNKStrategy nel set e calcolane le intersezioni.
-     * Complessità: O(n^2 x K), dove n è la dimensione del set
-     * 
-     * @param B MNKBoard di gioco
-     * @return set delle intersezioni generato
-     */
-    public IntersectionSet generateFrom(MNKBoard B) {
-        IntersectionSet iSet = new IntersectionSet(B);
-        for (MNKStrategy S : set) {
-            for (MNKStrategy T : set) {
-                if (S != T) {
-                    ArrayList<MNKIntersection> intersection = S.intersects(T, B);
-                    if (intersection != null) {
-                        iSet.addAll(intersection);
-                        if (intersection.get(0).winning())
-                            return iSet;
-                    }
-                }
-            }
-        }
-        return iSet.size() > 0 ? iSet : null;
     }
 
     /**
@@ -1092,42 +318,123 @@ public class StrategySet {
         return win_count;
     }
 
-    // Test functions
-    public MNKStrategy[] set() {
-        return set.toArray(new MNKStrategy[0]);
+    /**
+     * Complessità: O(n), dove n è la dimensione del set
+     * 
+     * @param B MNKBoard di gioco attuale
+     * @return la cella c che, se marcata, porta alla vittoria
+     *         il giocatore possessore del set
+     */
+    public MNKCell winningCell(MNKBoard B) {
+        for (MNKStrategy S : set)
+            if (S.valid() && S.winning())
+                return S.getWinCell(B);
+        throw new IllegalStateException("Should have found a single-move win.");
     }
 
-    public void test_print() {
+    // Debug
+    public void print() {
         System.out.println(player + ": ");
-        System.out.println("Set contains " + size() + " strategies.");
-        System.out.println("->" + set);
-        System.out.println("Set has stored " + invalid_size() + " invalid strategies.");
-        System.out.println("->" + invalid_stack);
-        System.out.println("Winning strategies are " + win_count);
-        System.out.println("Generated strats stack state: " + generated_stack);
-
-        System.out.println();
+        for (MNKStrategy S : set)
+            System.out.println(S);
+        System.out.print('\n');
     }
 
-    private int gen_size() {
-        int tot = 0;
-        for (int n : generated_stack)
-            tot += n;
-        return tot;
+    public int generaOrizzontali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
+
+        for (int x = c.j - (B.K - 1); x <= c.j; x++) {
+            if (x >= 0 && x < B.N && x + B.K - 1 < B.N) {
+                MNKStrategy strategia = new MNKStrategy(B, c);
+
+                for (int y = x; y < B.K + x && y < B.N && strategia.valid(); y++) {
+                    MNKCell cella = new MNKCell(c.i, y, B.cellState(c.i, y));
+                    strategia.setRange(cella);
+                    if (B.cellState(c.i, y) != MNKCellState.FREE) {
+                        strategia.add(cella, B);
+                    }
+                }
+                if (strategia.valid() && !set.contains(strategia)) {
+                    // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
+                    add(strategia, B, Q, set.size());
+                    generated++;
+
+                }
+
+            }
+        }
+
+        return generated;
     }
 
-    private int invalid_size() {
-        int tot = 0;
-        for (ArrayList<InvMNKStrategy> l : invalid_stack)
-            tot += l.size();
-        return tot;
+    public int generaVerticali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
+
+        for (int x = c.i - (B.K - 1); x <= c.i; x++) {
+            if (x >= 0 && x < B.M && x + B.K - 1 < B.M) {
+                MNKStrategy strategia = new MNKStrategy(B, c);
+                for (int y = x; y < B.K + x && strategia.valid(); y++) {
+                    MNKCell cella = new MNKCell(y, c.j, B.cellState(y, c.j));
+                    strategia.setRange(cella);
+                    if (B.cellState(y, c.j) != MNKCellState.FREE) {
+                        strategia.add(cella, B);
+                    }
+                }
+                if (strategia.valid() && !set.contains(strategia)) {
+                    // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
+                    add(strategia, B, Q, set.size());
+                    generated++;
+
+                }
+
+            }
+        }
+        return generated;
     }
 
-    public int cellIndex(MNKCell c, MNKBoard B) {
-        return c.i * B.N + c.j;
+    public int generaDiagonali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
+
+        for (int x = c.j - (B.K - 1), y = c.i - (B.K - 1); x <= c.j && y <= c.i; x++, y++) {
+            if ((x >= 0 && x < B.N && x + B.K - 1 < B.N) && (y >= 0 && y < B.M && y + B.K - 1 < B.M)) {
+                System.out.println("Sto analizzando la casella [" + x + "," + y + "]");
+                MNKStrategy strategia = new MNKStrategy(B, c);
+                for (int a = x, b = y; a < B.K + x && b < B.K + y && strategia.valid(); a++, b++) {
+                    MNKCell cella = new MNKCell(b, a, B.cellState(b, a));
+                    strategia.setRange(cella);
+                    if (B.cellState(b, a) != MNKCellState.FREE) {
+                        strategia.add(cella, B);
+                    }
+                }
+                if (strategia.valid() && !set.contains(strategia)) {
+                    // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
+                    add(strategia, B, Q, set.size());
+                    generated++;
+
+                }
+
+            }
+        }
+
+        for (int col = c.j + (B.K - 1), row = c.i - (B.K - 1); col >= c.j && row <= c.i; col--, row++) {
+            if ((col >= 0 && col < B.N && col - (B.K - 1) >= 0) && (row >= 0 && row < B.M && row + B.K - 1 < B.M)) {
+                System.out.println("Sto analizzando la casella [" + col + "," + row + "]");
+                MNKStrategy strategia = new MNKStrategy(B, c);
+                for (int x = row, y = col; y >= col - (B.K - 1) && x < row + B.K && strategia.valid(); x++, y--) {
+                    MNKCell cella = new MNKCell(x, y, B.cellState(x, y));
+                    strategia.setRange(cella);
+                    if (B.cellState(x, y) != MNKCellState.FREE) {
+                        strategia.add(cella, B);
+                    }
+                }
+                if (strategia.valid() && !set.contains(strategia)) {
+                    // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
+                    add(strategia, B, Q, set.size());
+                    generated++;
+
+                }
+
+            }
+        }
+
+        return generated;
     }
 
-    public Map<Integer, ArrayList<MNKCell>> getCelleConPriorita() {
-        return celleConPriorita;
-    }
 }
