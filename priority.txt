@@ -1,4 +1,0 @@
-priorità 0 - 
-priorità 1 - intersezione
-priorità 2 - cella che genera intersezioni
-priorità MIN=9 - cella in MNKStrategy
