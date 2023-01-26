@@ -78,11 +78,6 @@ class AlphaBetaPro implements MNKPlayer {
         max.print();
         min.print();
         Q.printQueue();
-        System.out.print('\n');
-        System.out.println("Marked [" + c.i + "," + c.j + "]");
-        print(B);
-        Q.printQueue();
-
          */
     }
 
