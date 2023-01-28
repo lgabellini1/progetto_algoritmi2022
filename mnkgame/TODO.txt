@@ -1,0 +1,4 @@
+1. Ordinamento mosse (AlphaBetaPro - iterativeDeepening?) tramite Priority Queue
+3. Controllo immediato vittoria avversario (AlphaBetaPro - selectCell)
+4. Migliorare eval() (AlphaBetaPro)
+5. Rotazioni transposition table (AlphaBetaPro - ?) 
