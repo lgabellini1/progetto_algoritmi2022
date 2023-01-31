@@ -128,14 +128,14 @@ class AlphaBetaPro implements MNKPlayer {
         min.update(c, B, Q);
 
         // Debug messages
-        if (B.cellState(c.i, c.j) == MNKCellState.P1) {
-            System.out.println("Marked [" + c.i + "," + c.j + "]");
-            // print(B);
-            // max.print();
-            // min.print();
-            // Q.printQueue();
-            System.out.print('\n');
-        }
+        // if (B.cellState(c.i, c.j) == MNKCellState.P1) {
+        // System.out.println("Marked [" + c.i + "," + c.j + "]");
+        // print(B);
+        // max.print();
+        // min.print();
+        // Q.printQueue();
+        // System.out.print('\n');
+        // }
 
     }
 
@@ -158,48 +158,40 @@ class AlphaBetaPro implements MNKPlayer {
     }
 
     private double eval(MNKBoard B) {
-        if (B.gameState() == myWin)
+        if (B.gameState() == myWin) {
             return +1;
-        else if (B.gameState() == yourWin)
+        } else if (B.gameState() == yourWin) {
             return -1;
-        else if (B.gameState() == MNKGameState.DRAW)
+        } else if (B.gameState() == MNKGameState.DRAW) {
             return 0;
-        else { // TODO!
+        } else { // TODO!
             double eval = 0;
             if (myTurn(B)) {
                 if (max.winning() >= 1) {
-                    System.out.println("Eval ha valore (1): " + eval);
                     return +1;
                 }
                 if (min.winning() >= 2) {
-                    System.out.println("Eval ha valore (2): " + eval);
                     return -1;
                 } else if (min.winning() == 1) {
-                    System.out.println("Eval ha valore (3): " + eval);
                     eval -= 0.2;
                 }
 
             } else {
                 if (min.winning() >= 1) {
-                    System.out.println("Eval ha valore (4): " + eval);
                     return -1;
                 }
                 if (max.winning() >= 2) {
-                    System.out.println("Eval ha valore (5): " + eval);
                     return +1;
                 } else if (max.winning() == 1) {
-                    System.out.println("Eval ha valore (6): " + eval);
                     eval += 0.2;
                 }
 
             }
 
             if (max.size() > min.size()) {
-                System.out.println("Eval ha valore (7): " + eval);
                 eval += 0.3;
             } else if (min.size() > max.size())
                 eval -= 0.3;
-            System.out.println("Eval ha valore (8): " + eval);
             return eval;
         }
     }
@@ -347,7 +339,9 @@ class AlphaBetaPro implements MNKPlayer {
         double eval, best_eval = -999;
         MNKCell[] FC = B.getFreeCells(), queue_moves = Q.moves();
         MNKCell selected = FC[rand.nextInt(FC.length)];
-
+        if (queue_moves == null) {
+            return selected;
+        }
         for (MNKCell c : queue_moves) {
             if (TEMPO_SCADUTO) {
                 break;
@@ -409,14 +403,16 @@ class AlphaBetaPro implements MNKPlayer {
             }
             // If there is just one possible move, return immediately
             if (FC.length == 1) {
+                timer.cancel();
                 return FC[0];
             }
 
             // Check whether there is single move win
             for (MNKCell c : FC) {
-                if (B.markCell(c.i, c.j) == myWin)
+                if (B.markCell(c.i, c.j) == myWin) {
+                    timer.cancel();
                     return c;
-                else
+                } else
                     B.unmarkCell();
             }
 
@@ -426,6 +422,7 @@ class AlphaBetaPro implements MNKPlayer {
             for (int k = 0; k < FC.length; k++) {
                 // If time is running out, return the randomly selected cell
                 if (TEMPO_SCADUTO) {
+
                     return result;
                 } else if (k != pos) {
                     MNKCell d = FC[k];
@@ -433,6 +430,7 @@ class AlphaBetaPro implements MNKPlayer {
                         B.unmarkCell(); // undo adversary move
                         B.unmarkCell(); // undo my move
                         B.markCell(d.i, d.j); // select his winning position
+                        timer.cancel();
                         return d; // return his winning position
                     } else {
                         B.unmarkCell(); // undo adversary move to try a new one
@@ -445,6 +443,7 @@ class AlphaBetaPro implements MNKPlayer {
 
                 // If time is running out, return the randomly selected cell
                 if (TEMPO_SCADUTO) {
+
                     break;
 
                 } else {
@@ -462,6 +461,7 @@ class AlphaBetaPro implements MNKPlayer {
             }
 
             B.markCell(result.i, result.j);
+            timer.cancel();
             return result;
         } else {
             if (FC.length == 1) {
@@ -473,6 +473,7 @@ class AlphaBetaPro implements MNKPlayer {
                 MNKCell c = new MNKCell(B.M / 2, B.N / 2);
 
                 mark(c, B);
+                timer.cancel();
                 return c;
             }
             // Retrieve adversary move
@@ -483,19 +484,21 @@ class AlphaBetaPro implements MNKPlayer {
             }
             if (MC.length == 1) {
                 MNKCell c = MC[0];
-                if (B.cellState(c.i + 1, c.j + 1) == MNKCellState.FREE) {
+                if (c.i != B.M && c.j != B.N) {
+                }
+                if (c.i + 1 < B.M && c.j + 1 < B.N && B.cellState(c.i + 1, c.j + 1) == MNKCellState.FREE) {
                     MNKCell d = new MNKCell(c.i + 1, c.j + 1);
                     mark(d, B);
                     return d;
-                } else if (B.cellState(c.i - 1, c.j - 1) == MNKCellState.FREE) {
+                } else if (c.i - 1 >= 0 && c.j - 1 >= 0 && B.cellState(c.i - 1, c.j - 1) == MNKCellState.FREE) {
                     MNKCell d = new MNKCell(c.i - 1, c.j - 1);
                     mark(d, B);
                     return d;
-                } else if (B.cellState(c.i - 1, c.j + 1) == MNKCellState.FREE) {
+                } else if (c.i - 1 >= 0 && c.j + 1 < B.N && B.cellState(c.i - 1, c.j + 1) == MNKCellState.FREE) {
                     MNKCell d = new MNKCell(c.i - 1, c.j + 1);
                     mark(d, B);
                     return d;
-                } else if (B.cellState(c.i + 1, c.j - 1) == MNKCellState.FREE) {
+                } else if (c.i + 1 < B.M && c.j - 1 >= 0 && B.cellState(c.i + 1, c.j - 1) == MNKCellState.FREE) {
                     MNKCell d = new MNKCell(c.i + 1, c.j - 1);
                     mark(d, B);
                     return d;
@@ -504,38 +507,45 @@ class AlphaBetaPro implements MNKPlayer {
             if (MC.length == 2) {
                 MNKCell c = MC[0];
 
-                for (MNKStrategy s : max.getStrategie(c)) {
-                    MNKCell c1 = new MNKCell(c.i + 1, c.j + 1);
-                    if (B.cellState(c.i + 1, c.j + 1) == MNKCellState.FREE && s.contains(c1)) {
-                        MNKCell d = new MNKCell(c.i + 1, c.j + 1);
-                        mark(d, B);
-                        return d;
-                    }
-                    MNKCell c2 = new MNKCell(c.i - 1, c.j - 1);
-                    if (B.cellState(c.i - 1, c.j - 1) == MNKCellState.FREE && s.contains(c2)) {
-                        MNKCell d = new MNKCell(c.i - 1, c.j - 1);
-                        mark(d, B);
-                        return d;
-                    }
-                    MNKCell c3 = new MNKCell(c.i - 1, c.j + 1);
-                    if (B.cellState(c.i - 1, c.j + 1) == MNKCellState.FREE & s.contains(c3)) {
-                        MNKCell d = new MNKCell(c.i - 1, c.j + 1);
-                        mark(d, B);
-                        return d;
-                    }
-                    MNKCell c4 = new MNKCell(c.i + 1, c.j - 1);
-                    if (B.cellState(c.i + 1, c.j - 1) == MNKCellState.FREE && s.contains(c4)) {
-                        MNKCell d = new MNKCell(c.i + 1, c.j - 1);
-                        mark(d, B);
-                        return d;
-                    }
+                if (B.cellState(c.i + 1, c.j + 1) == MNKCellState.FREE
+                        && B.cellState(c.i - 1, c.j - 1) == MNKCellState.FREE) {
+                    MNKCell d = new MNKCell(c.i + 1, c.j + 1);
+                    mark(d, B);
+                    timer.cancel();
+                    return d;
                 }
+
+                if (B.cellState(c.i - 1, c.j - 1) == MNKCellState.FREE
+                        && B.cellState(c.i + 1, c.j + 1) == MNKCellState.FREE) {
+                    MNKCell d = new MNKCell(c.i - 1, c.j - 1);
+                    mark(d, B);
+                    timer.cancel();
+                    return d;
+                }
+
+                if (B.cellState(c.i - 1, c.j + 1) == MNKCellState.FREE
+                        && B.cellState(c.i + 1, c.j - 1) == MNKCellState.FREE) {
+                    MNKCell d = new MNKCell(c.i - 1, c.j + 1);
+                    mark(d, B);
+                    timer.cancel();
+                    return d;
+                }
+
+                if (B.cellState(c.i + 1, c.j - 1) == MNKCellState.FREE
+                        && B.cellState(c.i - 1, c.j + 1) == MNKCellState.FREE) {
+                    MNKCell d = new MNKCell(c.i + 1, c.j - 1);
+                    mark(d, B);
+                    timer.cancel();
+                    return d;
+                }
+
             }
 
             // One-move win/lose check
             if (max.winning() >= 1 || min.winning() >= 1) {
                 MNKCell c = max.winning() >= 1 ? max.winningCell(B) : min.winningCell(B);
                 mark(c, B);
+                timer.cancel();
                 return c;
             }
             MNKCell[] queue_moves = Q.moves();
@@ -553,18 +563,40 @@ class AlphaBetaPro implements MNKPlayer {
                         // System.out.println(s);
 
                         if (s.winning()) {
-                            // System.out.println("La strategia " + s + " è vincente");
-                            strategie_vincenti++;
+                            timer.cancel();
+                            return mossa;
                         }
                         if (strategie_vincenti == 2) {
-
+                            timer.cancel();
                             return mossa;
                         }
                     }
                     // B.unmarkCell();
                     unmark(mossa, B);
                 }
+                // se vinciamo in una mossa
+                for (MNKCell mossa : queue_moves) {
+                    // System.out.println("------------------------------------------------");
+                    // System.out.println("Sto analizzando la casella: [" + mossa.i + "," + mossa.j
+                    // + "]");
+                    // B.markCell(mossa.i, mossa.j);
+                    mark(mossa, B);
+                    int strategie_vincenti = 0;
+                    for (MNKStrategy s : max.getStrategie(mossa)) {
+                        // System.out.println(s);
 
+                        if (s.winning()) {
+                            // System.out.println("La strategia " + s + " è vincente");
+                            strategie_vincenti++;
+                        }
+                        if (strategie_vincenti == 2) {
+                            timer.cancel();
+                            return mossa;
+                        }
+                    }
+                    // B.unmarkCell();
+                    unmark(mossa, B);
+                }
                 // Se perdiamo in due modi diversi
                 for (MNKCell mossa : queue_moves) {
                     // System.out.println("------------------------------------------------");
@@ -587,6 +619,7 @@ class AlphaBetaPro implements MNKPlayer {
                                     unmark(mossa, B);
                                     // B.markCell(mossa_avversario.i, mossa_avversario.j);
                                     mark(mossa_avversario, B);
+                                    timer.cancel();
                                     return mossa_avversario;
                                 }
                             }
