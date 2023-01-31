@@ -108,7 +108,7 @@ public class MovesQueue {
         if (Q.size() == 0)
             return null;
         MNKCell[] queue = Q.toArray(new MNKCell[0]);
-        // Arrays.sort(queue);
+        Arrays.sort(queue);
         return queue;
     }
 
