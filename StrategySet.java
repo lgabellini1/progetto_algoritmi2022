@@ -85,12 +85,26 @@ public class StrategySet {
      * @param index indice al quale viene aggiunto S
      */
     private void add(MNKStrategy S, MNKBoard B, MovesQueue Q, int index) {
+
+        /*
+         * if (B.getMarkedCells().length == 2) {
+         * System.out.println("ADD-> la strategia è: " + S);
+         * }
+         */
+
         set.add(index, S);
         if (S.winning())
             win_count++;
 
         for (MNKCell cell : S.range()) {
-            if (Q.player == S.player && B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+
+            /*
+             * if (B.getMarkedCells().length == 2) {
+             * System.out.println("ADD-> La casella è: " + cell);
+             * }
+             */
+
+            if (B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
                 if (Q.isContained(cell)) {
                     int priority = Q.getPriority(cell);
                     priority = priority + 1;
@@ -110,16 +124,27 @@ public class StrategySet {
      * @param Q attuale priority queue delle mosse
      */
     private void remove(MNKStrategy S, MNKBoard B, MovesQueue Q) {
+        /*
+         * if (B.getMarkedCells().length == 2) {
+         * System.out.println("REMOVE-> la strategia è: " + S);
+         * }
+         */
         if (S.winning())
             win_count--;
 
         for (MNKCell cell : S.range()) {
-            MNKIntersection i = intersections.get(cell);
-            i.remove(S);
+            /*
+             * if (B.getMarkedCells().length == 2) {
+             * System.out.println("REMOVE-> La casella è: " + cell);
+             * }
+             */
+            if (B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+                if (Q.isContained(cell)) {
+                    int priority = Q.getPriority(cell);
+                    priority = priority - 1;
+                    Q.shiftPriority(cell, B, priority);
 
-            if (Q.player == S.player && B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
-                int p = i.valid(B) ? 0 : 2;
-                Q.shiftPriority(cell, B, p);
+                }
             }
         }
     }
@@ -142,14 +167,20 @@ public class StrategySet {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
         }
-        if (B.cellState(c.i, c.j) == adv) {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e il mio avversario ha giocato la cella : [" + c.i + "," + c.j + "] "
-                    + "---------------------------" + "\n");
-        } else {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e ho giocato la cella : [" + c.i + "," + c.j + "] " + "---------------------------" + "\n");
-        }
+
+        /*
+         * if (B.cellState(c.i, c.j) == adv) {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e il mio avversario ha giocato la cella : [" + c.i + "," + c.j + "] "
+         * + "---------------------------" + "\n");
+         * } else {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e ho giocato la cella : [" + c.i + "," + c.j + "] " +
+         * "---------------------------" + "\n");
+         * }
+         */
 
         // 1)
         /* -------------------------------------------------- */
@@ -189,9 +220,10 @@ public class StrategySet {
 
         // 2)
         /* -------------------------------------------------- */
-        if (B.cellState(c.i, c.j) == adv)
-            generated_stack.push(0); // Se c appartiene all'avversario, allora sicuramente le generate saranno 0
-        else {
+        if (B.cellState(c.i, c.j) == adv) {
+            generated_stack.push(0); // Se c appartiene all'avversario, allora
+            // sicuramente le generate saranno 0
+        } else {
             // Numero di MNKStrategy generate nel dato turno.
             int generated = 0;
 
@@ -201,7 +233,7 @@ public class StrategySet {
 
             generated += generaDiagonali(c, B, 0, Q);
 
-            print();
+            // print();
             generated_stack.push(generated);
 
         }
@@ -240,15 +272,21 @@ public class StrategySet {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
         }
-        if (B.cellState(c.i, c.j) == adv) {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e annullo la cella del mio avversario: [" + c.i + "," + c.j + "] "
-                    + "---------------------------" + "\n");
-        } else {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e annullo la cella che ho giocato : [" + c.i + "," + c.j + "] " + "---------------------------"
-                    + "\n");
-        }
+
+        /*
+         * if (B.cellState(c.i, c.j) == adv) {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e annullo la cella del mio avversario: [" + c.i + "," + c.j + "] "
+         * + "---------------------------" + "\n");
+         * } else {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e annullo la cella che ho giocato : [" + c.i + "," + c.j + "] " +
+         * "---------------------------"
+         * + "\n");
+         * }
+         */
 
         // 1)
         /* -------------------------------------------------- */
@@ -263,6 +301,7 @@ public class StrategySet {
         /* -------------------------------------------------- */
         ArrayList<InvMNKStrategy> invalids = invalid_stack.pop();
         for (InvMNKStrategy S : invalids)
+
             add(S.S, B, Q, S.index);
         /* -------------------------------------------------- */
 
@@ -394,7 +433,7 @@ public class StrategySet {
 
         for (int x = c.j - (B.K - 1), y = c.i - (B.K - 1); x <= c.j && y <= c.i; x++, y++) {
             if ((x >= 0 && x < B.N && x + B.K - 1 < B.N) && (y >= 0 && y < B.M && y + B.K - 1 < B.M)) {
-                System.out.println("Sto analizzando la casella [" + x + "," + y + "]");
+                // System.out.println("Sto analizzando la casella [" + x + "," + y + "]");
                 MNKStrategy strategia = new MNKStrategy(B, c);
                 for (int a = x, b = y; a < B.K + x && b < B.K + y && strategia.valid(); a++, b++) {
                     MNKCell cella = new MNKCell(b, a, B.cellState(b, a));
@@ -415,7 +454,7 @@ public class StrategySet {
 
         for (int col = c.j + (B.K - 1), row = c.i - (B.K - 1); col >= c.j && row <= c.i; col--, row++) {
             if ((col >= 0 && col < B.N && col - (B.K - 1) >= 0) && (row >= 0 && row < B.M && row + B.K - 1 < B.M)) {
-                System.out.println("Sto analizzando la casella [" + col + "," + row + "]");
+                // System.out.println("Sto analizzando la casella [" + col + "," + row + "]");
                 MNKStrategy strategia = new MNKStrategy(B, c);
                 for (int x = row, y = col; y >= col - (B.K - 1) && x < row + B.K && strategia.valid(); x++, y--) {
                     MNKCell cella = new MNKCell(x, y, B.cellState(x, y));
@@ -435,6 +474,18 @@ public class StrategySet {
         }
 
         return generated;
+    }
+
+    public ArrayList<MNKStrategy> getStrategie(MNKCell c) {
+        Iterator<MNKStrategy> iter = set.iterator();
+        ArrayList<MNKStrategy> strategie = new ArrayList<MNKStrategy>();
+        while (iter.hasNext()) {
+            MNKStrategy S = iter.next();
+            if (S.contains(c)) {
+                strategie.add(S);
+            }
+        }
+        return strategie;
     }
 
 }
