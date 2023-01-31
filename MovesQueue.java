@@ -77,8 +77,8 @@ public class MovesQueue {
      * @param priority nuova priorità
      */
     public void shiftPriority(MNKCell c, MNKBoard B, int priority) {
-        if (B.cellState(c.i, c.j) != MNKCellState.FREE)
-            throw new IllegalStateException("Can't change priority of marked cell");
+        // if (B.cellState(c.i, c.j) != MNKCellState.FREE)
+        // throw new IllegalStateException("Can't change priority of marked cell");
         if (priority < 0)
             throw new IllegalStateException("Invalid priority!");
 
@@ -108,7 +108,7 @@ public class MovesQueue {
         if (Q.size() == 0)
             return null;
         MNKCell[] queue = Q.toArray(new MNKCell[0]);
-        Arrays.sort(queue);
+        // Arrays.sort(queue);
         return queue;
     }
 
@@ -141,7 +141,7 @@ public class MovesQueue {
         if (hTable.get(cellIndex(c)) != null)
             throw new IllegalStateException("[" + c.i + "," + c.j + "] should not be in the queue!");
 
-        if (pTable.get(cellIndex(c)) != 2) {
+        if (pTable.get(cellIndex(c)) > 0) {
             hTable.put(cellIndex(c), c);
             Q.add(new MNKCellPriority(c.i, c.j, B.cellState(c.i, c.j), pTable.get(cellIndex(c))));
             // Nota: re-inseriamo c nella coda con la priorità che aveva nel momento in cui
@@ -163,7 +163,6 @@ public class MovesQueue {
     public boolean isContained(MNKCell c) {
 
         return hTable.get(cellIndex(c)) != null;
-
     }
 
     public int getPriority(MNKCell c) {
