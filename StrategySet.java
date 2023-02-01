@@ -16,8 +16,6 @@ public class StrategySet {
      */
     private final ArrayList<MNKStrategy> set;
 
-    public final IntersectionSet intersections;
-
     public final MNKCellState player, adv;
 
     /**
@@ -32,12 +30,12 @@ public class StrategySet {
      */
     private final ArrayDeque<ArrayList<InvMNKStrategy>> invalid_stack;
 
-    private final int N, K;
-
     /**
      * Numero di MNKStrategy vincenti (a K-1 simboli) nel set.
      */
     private int win_count;
+
+    private int max_size;
 
     /**
      * Classe ausiliaria per invalid_stack. Memorizza una MNKStrategy con
@@ -59,71 +57,87 @@ public class StrategySet {
     }
 
     /**
-     * Complessità: O(1)
-     *
-     * @param B      MNKBoard di gioco
+     * @param B      configurazione attuale di gioco
      * @param player giocatore a cui è associato il set
      */
     public StrategySet(MNKBoard B, MNKCellState player) {
-        set = new ArrayList<>(4 * B.M * B.N);
-        intersections = new IntersectionSet(B);
-        this.player = player;
+        set             = new ArrayList<>(4 * B.M * B.N);
+        this.player     = player;
+        adv             = player == MNKCellState.P1 ? MNKCellState.P2 : MNKCellState.P1;
         generated_stack = new ArrayDeque<>(B.getFreeCells().length);
-        invalid_stack = new ArrayDeque<>(B.getFreeCells().length);
-        adv = player == MNKCellState.P1 ? MNKCellState.P2 : MNKCellState.P1;
-        N = B.N;
-        K = B.K;
-        win_count = 0;
+        invalid_stack   = new ArrayDeque<>(B.getFreeCells().length);
+        win_count       = 0;
+        max_size        = 0;
     }
 
     /**
-     * Complessità: O(K)
-     *
+     * Complessita': O(K)
+     * 
      * @param S     MNKStrategy che si vuole aggiungere al set
      * @param B     configurazione attuale di gioco
-     * @param Q     attuale priority queue delle mosse
+     * @param Q     priority queue delle mosse
      * @param index indice al quale viene aggiunto S
      */
     private void add(MNKStrategy S, MNKBoard B, MovesQueue Q, int index) {
+        /*
+         * if (B.getMarkedCells().length == 2) {
+         * System.out.println("ADD-> la strategia è: " + S);
+         * }
+         */
         set.add(index, S);
+        if (set.size()>max_size)
+            max_size = set.size();
         if (S.winning())
             win_count++;
 
         for (MNKCell cell : S.range()) {
-            MNKIntersection i = intersections.get(cell);
-            i.add(S);
-
-            if (Q.player==S.player && B.cellState(cell.i,cell.j)==MNKCellState.FREE) {
-                int p = i.valid(B) ? i.cardinality() : 1;
-                Q.shiftPriority(cell, B, p);
+            /*
+             * if (B.getMarkedCells().length == 2) {
+             * System.out.println("ADD-> La casella è: " + cell);
+             * }
+             */
+            if (B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+                if (Q.isContained(cell)) {
+                    Q.shiftPriority(cell, B, Q.getPriority(cell) + 1);
+                } else {
+                    Q.shiftPriority(cell, B, 1);
+                }
             }
         }
     }
 
     /**
-     * Complessità: O(K)
-     *
+     * Complessita': O(K)
+     * 
      * @param S MNKStrategy che si vuole rimuovere dal set (poiché invalidata)
      * @param B configurazione attuale di gioco
      * @param Q attuale priority queue delle mosse
      */
     private void remove(MNKStrategy S, MNKBoard B, MovesQueue Q) {
+        /*
+         * if (B.getMarkedCells().length == 2) {
+         * System.out.println("REMOVE-> la strategia è: " + S);
+         * }
+         */
         if (S.winning())
             win_count--;
 
         for (MNKCell cell : S.range()) {
-            MNKIntersection i = intersections.get(cell);
-            i.remove(S);
-
-            if (Q.player == S.player && B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
-                int p = i.valid(B) ? i.cardinality() : 0;
-                Q.shiftPriority(cell, B, p);
+            /*
+             * if (B.getMarkedCells().length == 2) {
+             * System.out.println("REMOVE-> La casella è: " + cell);
+             * }
+             */
+            if (B.cellState(cell.i, cell.j) == MNKCellState.FREE) {
+                if (Q.isContained(cell)) {
+                    Q.shiftPriority(cell, B, Q.getPriority(cell) - 1);
+                }
             }
         }
     }
 
     /**
-     * Funzione "compagno" di markCell(c). E' così strutturata:
+     * Funzione "compagno" di markCell(c). E' strutturata nel modo seguente:
      *
      * 1) per ogni MNKStrategy S tale che S contiene c, aggiunge
      * c ad S;
@@ -131,8 +145,8 @@ public class StrategySet {
      * 2) genera a partire da c al più 8 nuove MKNStrategy (una per
      * direzione) e aggiungi quelle valide al set.
      *
-     * Complessità: O(n), dove n è la dimensione del set
-     *
+     * Complessita': O(n), dove n è la dimensione del set
+     * 
      * @param c cella marcata nell'algoritmo
      * @param B MNKBoard di gioco
      */
@@ -140,15 +154,20 @@ public class StrategySet {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Unmarked cell passed as argument!");
         }
+
         /*
-        if (B.cellState(c.i, c.j) == adv) {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e il mio avversario ha giocato la cella : [" + c.i + "," + c.j + "] "
-                    + "---------------------------" + "\n");
-        } else {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e ho giocato la cella : [" + c.i + "," + c.j + "] " + "---------------------------" + "\n");
-        } */
+         * if (B.cellState(c.i, c.j) == adv) {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e il mio avversario ha giocato la cella : [" + c.i + "," + c.j + "] "
+         * + "---------------------------" + "\n");
+         * } else {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e ho giocato la cella : [" + c.i + "," + c.j + "] " +
+         * "---------------------------" + "\n");
+         * }
+         */
 
         // 1)
         /* -------------------------------------------------- */
@@ -188,21 +207,12 @@ public class StrategySet {
 
         // 2)
         /* -------------------------------------------------- */
-        if (B.cellState(c.i, c.j) == adv)
-            generated_stack.push(0); // Se c appartiene all'avversario, allora sicuramente le generate saranno 0
-        else {
-            // Numero di MNKStrategy generate nel dato turno.
-            int generated = 0;
-
-            generated += generaOrizzontali(c, B, 0, Q);
-
-            generated += generaVerticali(c, B, 0, Q);
-
-            generated += generaDiagonali(c, B, 0, Q);
-
-            //print();
+        if (B.cellState(c.i, c.j) == adv) {
+            generated_stack.push(0); // Se c appartiene all'avversario, allora
+            // sicuramente le generate saranno 0
+        } else {
+            int generated = generaOrizzontali(c,B,Q) + generaVerticali(c,B,Q) + generaDiagonali(c,B,Q);
             generated_stack.push(generated);
-
         }
         /* -------------------------------------------------- */
 
@@ -212,7 +222,6 @@ public class StrategySet {
         if (win_count > set.size())
             throw new IllegalStateException("More winning strategies (" + win_count +
                     ") than factual strategies (" + set.size());
-
     }
 
     /**
@@ -230,8 +239,8 @@ public class StrategySet {
      * 3) per ogni MNKStrategy S (preesistente a c) tale che S contiene c, rimuove
      * c da S;
      *
-     * Complessità: O(n), dove n è la dimensione del set
-     *
+     * Complessita': O(n), dove n è la dimensione del set
+     * 
      * @param c cella smarcata nell'algoritmo
      * @param B MNKBoard di gioco
      */
@@ -239,16 +248,21 @@ public class StrategySet {
         if (B.cellState(c.i, c.j) == MNKCellState.FREE) {
             throw new IllegalArgumentException("Input cell is FREE: cell should be marked!");
         }
+
         /*
-        if (B.cellState(c.i, c.j) == adv) {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e annullo la cella del mio avversario: [" + c.i + "," + c.j + "] "
-                    + "---------------------------" + "\n");
-        } else {
-            System.out.println("\n" + "---------------------------" + "Sono il giocatore " + player
-                    + " e annullo la cella che ho giocato : [" + c.i + "," + c.j + "] " + "---------------------------"
-                    + "\n");
-        } */
+         * if (B.cellState(c.i, c.j) == adv) {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e annullo la cella del mio avversario: [" + c.i + "," + c.j + "] "
+         * + "---------------------------" + "\n");
+         * } else {
+         * System.out.println("\n" + "---------------------------" +
+         * "Sono il giocatore " + player
+         * + " e annullo la cella che ho giocato : [" + c.i + "," + c.j + "] " +
+         * "---------------------------"
+         * + "\n");
+         * }
+         */
 
         // 1)
         /* -------------------------------------------------- */
@@ -292,17 +306,11 @@ public class StrategySet {
         if (win_count > set.size())
             throw new IllegalStateException("More winning strategies (" + win_count +
                     ") than factual strategies (" + set.size() + ")");
-        /*
-         * if (set.size() + invalid_size() != gen_size())
-         * throw new IllegalStateException(player + ": invariant broken! Set is: " + set
-         * + "\nInvalids are: " +
-         * invalids + "\nGenerated number is: " + gen_size());
-         */
     }
 
     /**
-     * Complessità: O(1)
-     *
+     * Complessita': O(1)
+     * 
      * @return dimensione n del set
      */
     public int size() {
@@ -310,8 +318,8 @@ public class StrategySet {
     }
 
     /**
-     * Complessità: O(1)
-     *
+     * Complessita': O(1)
+     * 
      * @return MNKStrategy vincenti
      */
     public int winning() {
@@ -319,11 +327,11 @@ public class StrategySet {
     }
 
     /**
-     * Complessità: O(n), dove n è la dimensione del set
-     *
+     * Complessita': O(n), dove n è la dimensione del set
+     * 
      * @param B MNKBoard di gioco attuale
      * @return la cella c che, se marcata, porta alla vittoria
-     *         il giocatore possessore del set
+     *         il giocatore a cui appartiene il set
      */
     public MNKCell winningCell(MNKBoard B) {
         for (MNKStrategy S : set)
@@ -332,16 +340,16 @@ public class StrategySet {
         throw new IllegalStateException("Should have found a single-move win.");
     }
 
-    // Debug
-    public void print() {
-        System.out.println(player + ": ");
-        for (MNKStrategy S : set)
-            System.out.println(S);
-        System.out.print('\n');
-    }
-
-    public int generaOrizzontali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
-
+    /**
+     * Genera orizzontalmente a partire dalla cella c.
+     * Complessita': O(K)
+     * @param c cella marcata
+     * @param B configurazione attuale di gioco
+     * @param Q priority queue delle mosse
+     * @return numero di MNKStrategy generate
+     */
+    public int generaOrizzontali(MNKCell c, MNKBoard B, MovesQueue Q) {
+        int generated=0;
         for (int x = c.j - (B.K - 1); x <= c.j; x++) {
             if (x >= 0 && x < B.N && x + B.K - 1 < B.N) {
                 MNKStrategy strategia = new MNKStrategy(B, c);
@@ -353,21 +361,26 @@ public class StrategySet {
                         strategia.add(cella, B);
                     }
                 }
+
                 if (strategia.valid() && !set.contains(strategia)) {
                     // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
                     add(strategia, B, Q, set.size());
                     generated++;
-
                 }
-
             }
-        }
-
-        return generated;
+        } return generated;
     }
 
-    public int generaVerticali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
-
+    /**
+     * Genera verticalmente a partire dalla cella c.
+     * Complessita': O(K)
+     * @param c cella marcata
+     * @param B configurazione attuale di gioco
+     * @param Q priority queue delle mosse
+     * @return numero di MNKStrategy generate
+     */
+    public int generaVerticali(MNKCell c, MNKBoard B, MovesQueue Q) {
+        int generated=0;
         for (int x = c.i - (B.K - 1); x <= c.i; x++) {
             if (x >= 0 && x < B.M && x + B.K - 1 < B.M) {
                 MNKStrategy strategia = new MNKStrategy(B, c);
@@ -378,23 +391,29 @@ public class StrategySet {
                         strategia.add(cella, B);
                     }
                 }
+
                 if (strategia.valid() && !set.contains(strategia)) {
                     // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
                     add(strategia, B, Q, set.size());
                     generated++;
-
                 }
-
             }
-        }
-        return generated;
+        } return generated;
     }
 
-    public int generaDiagonali(MNKCell c, MNKBoard B, int generated, MovesQueue Q) {
-
+    /**
+     * Genera diagonalmente a partire dalla cella c.
+     * Complessita': O(K)
+     * @param c cella marcata
+     * @param B configurazione attuale di gioco
+     * @param Q priority queue delle mosse
+     * @return numero di MNKStrategy generate
+     */
+    public int generaDiagonali(MNKCell c, MNKBoard B, MovesQueue Q) {
+        int generated=0;
         for (int x = c.j - (B.K - 1), y = c.i - (B.K - 1); x <= c.j && y <= c.i; x++, y++) {
             if ((x >= 0 && x < B.N && x + B.K - 1 < B.N) && (y >= 0 && y < B.M && y + B.K - 1 < B.M)) {
-                //System.out.println("Sto analizzando la casella [" + x + "," + y + "]");
+                // System.out.println("Sto analizzando la casella [" + x + "," + y + "]");
                 MNKStrategy strategia = new MNKStrategy(B, c);
                 for (int a = x, b = y; a < B.K + x && b < B.K + y && strategia.valid(); a++, b++) {
                     MNKCell cella = new MNKCell(b, a, B.cellState(b, a));
@@ -403,19 +422,19 @@ public class StrategySet {
                         strategia.add(cella, B);
                     }
                 }
+
                 if (strategia.valid() && !set.contains(strategia)) {
                     // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
                     add(strategia, B, Q, set.size());
                     generated++;
 
                 }
-
             }
         }
 
         for (int col = c.j + (B.K - 1), row = c.i - (B.K - 1); col >= c.j && row <= c.i; col--, row++) {
             if ((col >= 0 && col < B.N && col - (B.K - 1) >= 0) && (row >= 0 && row < B.M && row + B.K - 1 < B.M)) {
-                //System.out.println("Sto analizzando la casella [" + col + "," + row + "]");
+                // System.out.println("Sto analizzando la casella [" + col + "," + row + "]");
                 MNKStrategy strategia = new MNKStrategy(B, c);
                 for (int x = row, y = col; y >= col - (B.K - 1) && x < row + B.K && strategia.valid(); x++, y--) {
                     MNKCell cella = new MNKCell(x, y, B.cellState(x, y));
@@ -424,17 +443,35 @@ public class StrategySet {
                         strategia.add(cella, B);
                     }
                 }
+
                 if (strategia.valid() && !set.contains(strategia)) {
                     // aggiunge/modifica tutte le celle di questa strategia alla coda di priorità
                     add(strategia, B, Q, set.size());
                     generated++;
 
                 }
-
             }
-        }
-
-        return generated;
+        } return generated;
     }
 
+    /**
+     *  Complessita': O(n), dove n è la dimensione del set
+     *  @return lista delle MNKStrategy passanti per c
+     */
+    public ArrayList<MNKStrategy> getStrategie(MNKCell c) {
+        ArrayList<MNKStrategy> strategie = new ArrayList<>();
+
+        for (MNKStrategy S : set)
+            if (S.contains(c)) strategie.add(S);
+        return strategie;
+    }
+
+
+    // Debug
+    public void print() {
+        System.out.println(player + ": ");
+        for (MNKStrategy S : set)
+            System.out.println(S);
+        System.out.print('\n');
+    }
 }

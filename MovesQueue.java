@@ -4,6 +4,7 @@ import java.util.*;
 
 public class MovesQueue {
     private final PriorityQueue<MNKCellPriority> Q;
+
     private final HashMap<Integer, MNKCell> hTable; // "Bodyguard": permette di verificare in O(1)
     // se una data cella è presente nella Priority Queue
 
@@ -11,8 +12,6 @@ public class MovesQueue {
 
     public final MNKCellState player;
     private final int N;
-
-    private static final int MIN_PRIORITY=0;
 
     public static final class MNKCellPriority extends MNKCell implements Comparable<MNKCellPriority> {
         private final int priority;
@@ -43,10 +42,7 @@ public class MovesQueue {
                 return 0;
             } else if (priority < c.priority) {
                 return +1;
-            }
-            return -1;
-
-            // return Integer.compare(priority, c.priority);
+            } return -1;
         }
 
         @Override
@@ -73,26 +69,24 @@ public class MovesQueue {
     /**
      * Data una cella c, aggiorna la sua priorità nella coda di mosse.
      * Complessità: O(n), dove n è la dimensione della
-     * coda, se c è contenuto; O(log n) altrimenti
-     *
+     *      coda, se c è contenuto; O(log n) altrimenti
      * @param c        cella di cui si vuole aggiornare la priorità
      * @param priority nuova priorità
      */
     public void shiftPriority(MNKCell c, MNKBoard B, int priority) {
-        if (B.cellState(c.i, c.j) != MNKCellState.FREE)
-            throw new IllegalStateException("Can't change priority of marked cell");
-        if (priority < MIN_PRIORITY)
+        if (priority < 0)
             throw new IllegalStateException("Invalid priority!");
 
         MNKCellPriority cp = new MNKCellPriority(c.i, c.j, B.cellState(c.i, c.j), priority);
         pTable.put(cellIndex(c), priority); // Aggiornamento priorità nella tabella
 
-        if (hTable.get(cellIndex(c)) != null && priority == MIN_PRIORITY)
+        if (priority == 0)
             remove(c, B);
-        else if (priority!=MIN_PRIORITY) { // Rimozione e re-inserimento a priorità aggiornata
+        else { // Rimozione e re-inserimento a priorità aggiornata
             if (hTable.get(cellIndex(c)) != null)
                 Q.remove(cp);
-            else hTable.put(cellIndex(c), c);
+            else
+                hTable.put(cellIndex(c), c);
             Q.add(cp);
         }
 
@@ -102,7 +96,7 @@ public class MovesQueue {
 
     /**
      * Complessità: O(n log n), dove n è la dimensione della coda
-     *
+     * 
      * @return mosse nella coda in ordine di priorità
      */
     public MNKCell[] moves() {
@@ -116,8 +110,7 @@ public class MovesQueue {
     /**
      * Rimuove una mossa c marcata dalla coda.
      * Complessità: O(n); dove n è la dimensione della
-     * coda, se c è contenuto; O(1) altrimenti
-     *
+     *      coda, se c è contenuto; O(1) altrimenti
      * @param c cella marcata
      */
     public void remove(MNKCell c, MNKBoard B) {
@@ -135,14 +128,13 @@ public class MovesQueue {
     /**
      * Ripristina la cella c smarcata nella coda di mosse.
      * Complessità: O(log n), dove n è la dimensione della coda
-     *
      * @param c cella appena smarcata
      */
     public void undo(MNKBoard B, MNKCell c) {
         if (hTable.get(cellIndex(c)) != null)
             throw new IllegalStateException("[" + c.i + "," + c.j + "] should not be in the queue!");
 
-        if (pTable.get(cellIndex(c)) != 2) {
+        if (pTable.get(cellIndex(c)) > 0) {
             hTable.put(cellIndex(c), c);
             Q.add(new MNKCellPriority(c.i, c.j, B.cellState(c.i, c.j), pTable.get(cellIndex(c))));
             // Nota: re-inseriamo c nella coda con la priorità che aveva nel momento in cui
@@ -152,6 +144,25 @@ public class MovesQueue {
                 throw new IllegalStateException("Mismatch between queue and hash table.");
         }
     }
+
+    /**
+     * Complessita': O(1)
+     * @param c cella di cui si vuole verificare la presenza nella coda
+     * @return True se c è contenuta nella coda; False altrimenti
+     */
+    public boolean isContained(MNKCell c) {
+        return hTable.get(cellIndex(c)) != null;
+    }
+
+    /**
+     * Complessita': O(1)
+     * @param c cella di cui si vuole conoscere la priorita'
+     * @return priorita' di c nella coda
+     */
+    public int getPriority(MNKCell c) {
+        return pTable.get(cellIndex(c));
+    }
+
 
     // Test
     public void printQueue() {
